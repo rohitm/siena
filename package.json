@@ -1,0 +1,37 @@
+{
+  "name": "siena",
+  "version": "1.0.0",
+  "description": "Trading algorithm based on simple moving average for crypto currencies",
+  "main": "src/index.js",
+  "dependencies": {
+    "lint": "^1.1.2",
+    "lodash": "^4.17.4",
+    "request": "^2.81.0"
+  },
+  "devDependencies": {
+    "eslint": "^4.5.0",
+    "eslint-config-airbnb-base": "^11.3.1",
+    "eslint-plugin-import": "^2.7.0"
+  },
+  "scripts": {
+    "lint": "./node_modules/.bin/eslint ./src/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rohitm/siena.git"
+  },
+  "keywords": [
+    "moving",
+    "average",
+    "bitcoin",
+    "ethereum",
+    "auto",
+    "trade"
+  ],
+  "author": "Rohit Manohar",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/rohitm/siena/issues"
+  },
+  "homepage": "https://github.com/rohitm/siena#readme"
+}
