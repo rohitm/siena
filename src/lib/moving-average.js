@@ -1,11 +1,9 @@
 const request = require('request');
 const _ = require('lodash');
+const config = require('config');
 
-const getMovingAverage = (market, fromTimestamp, toTimestamp, source = 'bitrex') => new Promise(async (resolveMovingAverage, rejectMovingAverage) => {
-  let url;
-  if (source === 'bitrex') {
-    url = `https://bittrex.com/api/v1.1/public/getmarkethistory?market=${market}`;
-  }
+const getMovingAverage = (market, fromTimestamp, toTimestamp, source = 'bittrex') => new Promise(async (resolveMovingAverage, rejectMovingAverage) => {
+  const url = `${config.get(`${source}.getmarkethistoryurl`)}?market=${market}`;
 
   try {
     const data = await (new Promise((resolve, reject) => request(url, (error, response, body) => {
