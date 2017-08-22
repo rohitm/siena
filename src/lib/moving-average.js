@@ -32,7 +32,7 @@ const getMovingAverage = (market, fromTimestamp, toTimestamp, source = 'bitrex')
     })));
 
     const filteredData = _.filter(data, (object) => {
-      const sellTimestamp = new Date(object.TimeStamp).getTime();
+      const sellTimestamp = Date.parse(((object.TimeStamp.slice(-1) !== 'Z') ? `${object.TimeStamp}Z` : object.TimeStamp));
 
       if (object.FillType === 'FILL'
       && object.OrderType === 'SELL'
