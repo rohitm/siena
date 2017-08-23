@@ -61,7 +61,7 @@ const getMarketHistory = market => new Promise(async (resolveGet, rejectGet) => 
 
 // Cache Every 15 mins
 log.info(`marketHistoryCache: Polling bittrex for history every ${config.get('pollIntervalMinutes')} minutes`);
-setInterval(() => cacheMarketHistory('USDT-BTC', (3600000 * 12)), config.get('pollIntervalMinutes') * 60 * 1000);
+setInterval(() => cacheMarketHistory('USDT-ETH', (3600000 * 12)), config.get('pollIntervalMinutes') * 60 * 1000);
 
 const app = express();
 
