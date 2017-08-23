@@ -1,53 +1,30 @@
-const request = require('request');
 const _ = require('lodash');
-const config = require('config');
+const getMarketHistory = require('./get-market-history');
 
-const getMovingAverage = (market, fromTimestamp, toTimestamp, source = 'bittrex') => new Promise(async (resolveMovingAverage, rejectMovingAverage) => {
-  const url = `${config.get(`${source}.getmarkethistoryurl`)}?market=${market}`;
+const getMovingAverage = (market, fromTimestamp, toTimestamp, source) =>
+  new Promise(async (resolveMovingAverage, rejectMovingAverage) => {
+    try {
+      const data = await getMarketHistory(market, fromTimestamp, toTimestamp, source);
 
-  try {
-    const data = await (new Promise((resolve, reject) => request(url, (error, response, body) => {
-      if (error) {
-        return reject(error);
-      }
+      const filteredData = _.filter(data, (object) => {
+        const sellTimestamp = Date.parse(((object.TimeStamp.slice(-1) !== 'Z') ? `${object.TimeStamp}Z` : object.TimeStamp));
 
-      if (response.body === undefined) {
-        return reject(new Error('Empty body'));
-      }
+        if (object.FillType === 'FILL'
+        && object.OrderType === 'SELL'
+        && sellTimestamp <= toTimestamp
+        && sellTimestamp >= fromTimestamp) {
+          return (object);
+        }
 
-      let jsonBody;
-      try {
-        jsonBody = JSON.parse(response.body);
-      } catch (jsonParseError) {
-        return reject(jsonParseError);
-      }
+        return (null);
+      });
 
-      if (jsonBody.success !== true) {
-        return reject(new Error(body.message || 'Unknown error'));
-      }
-
-      return resolve(jsonBody.result);
-    })));
-
-    const filteredData = _.filter(data, (object) => {
-      const sellTimestamp = Date.parse(((object.TimeStamp.slice(-1) !== 'Z') ? `${object.TimeStamp}Z` : object.TimeStamp));
-
-      if (object.FillType === 'FILL'
-      && object.OrderType === 'SELL'
-      && sellTimestamp <= toTimestamp
-      && sellTimestamp >= fromTimestamp) {
-        return (object);
-      }
-
-      return (null);
-    });
-
-    const movingAverage = filteredData.reduce((sum, object) =>
-      (sum + parseFloat(object.Price)), 0) / filteredData.length;
-    return resolveMovingAverage(movingAverage);
-  } catch (error) {
-    return rejectMovingAverage(error);
-  }
-});
+      const movingAverage = filteredData.reduce((sum, object) =>
+        (sum + parseFloat(object.Price)), 0) / filteredData.length;
+      return resolveMovingAverage(movingAverage);
+    } catch (error) {
+      return rejectMovingAverage(error);
+    }
+  });
 
 module.exports = getMovingAverage;
