@@ -21,7 +21,7 @@ const log = logger({ level: logger.INFO });
 
     const timestamps = _.map(filteredData, object =>
       helper.cleanBittrexTimestamp(object.TimeStamp));
-    log.info(`Timestamps between ${new Date(Math.min(...timestamps))} and ${new Date(Math.max(...timestamps))}`);
+    log.info(`Timestamps between ${new Date(Math.min(...timestamps))} and ${new Date(Math.max(...timestamps))} for about ${(Math.max(...timestamps) - Math.min(...timestamps)) / (1000 * 60 * 60)} hours`);
 
     const fileData = _.map(filteredData, object => `${helper.cleanBittrexTimestamp(object.TimeStamp)},${object.Price}`).join('\n');
     const matLabInsructions = [

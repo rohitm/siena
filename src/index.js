@@ -2,10 +2,12 @@ const movingAverage = require('./lib/moving-average');
 const getTicker = require('./lib/get-ticker');
 const logger = require('cli-logger');
 const _ = require('lodash');
+const redis = require('redis');
 
 const log = logger({ level: logger.INFO });
-
 let previousRecommendation;
+const redisClient = redis.createClient();
+redisClient.on('error', redisError => log.error(redisError));
 
 const poll = market => new Promise(async (resolvePoll, rejectPoll) => {
   try {
@@ -36,8 +38,18 @@ const poll = market => new Promise(async (resolvePoll, rejectPoll) => {
     if (_.isEqual(recommendation, previousRecommendation)) {
       return;
     }
-
     previousRecommendation = _.cloneDeep(recommendation);
+
+    if (recommendation.action !== previousRecommendation.action) {
+      // Cache recommendation
+      await redisClient.sadd([`${market}-crossovers`, `${JSON.stringify({ movingAverageOne, movingAverage24, action: recommendation.action, price: (recommendation.buyPrice || recommendation.sellPrice), timestamp: new Date().getTime() })}`]);
+
+      // Crossover point
+      log.info('poll, recommendation:  CROSSOVER');
+    }
+
+    log.info(`poll, movingAverageOne, ${new Date()}:  ${movingAverageOne}`);
+    log.info(`poll, movingAverage24, ${new Date()}:  ${movingAverage24}`);
     log.info(`poll, recommendation : ${recommendation.action} currency in ${market} at price ${(recommendation.buyPrice || recommendation.sellPrice)}`);
   } catch (pollError) {
     log.error(`poll, error: ${pollError}`);
