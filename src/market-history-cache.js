@@ -40,6 +40,7 @@ const cacheMarketHistory = (market, periodInMilliseconds) => new Promise(
 
       // Clean up the cache
       const cacheLowerLimitTimestamp = new Date().getTime() - periodInMilliseconds;
+      log.info(`cacheMarketHistory, periodInMilliseconds, cacheLowerLimitTimestamp: ${periodInMilliseconds}, ${new Date(cacheLowerLimitTimestamp)}`);
       log.info(`cacheMarketHistory: Cleaning cache with redis code : 'ZREMRANGEBYSCORE ${market} -inf ${cacheLowerLimitTimestamp}'`);
       await redisClient.zremrangebyscore([market, '-inf', cacheLowerLimitTimestamp]);
 
