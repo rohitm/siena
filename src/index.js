@@ -8,7 +8,7 @@ const helper = require('./helper');
 
 const log = logger({ level: logger.INFO });
 let previousMovingAverages;
-let shortPeriod = config.get('strategy.shortPeriod');
+const shortPeriod = config.get('strategy.shortPeriod');
 
 const redisClient = redis.createClient();
 redisClient.on('error', redisError => log.error(redisError));
@@ -46,7 +46,7 @@ const poll = market => new Promise(async (resolvePoll) => {
 
     if (_.has(previousMovingAverages, 'trend') && movingAverages.trend !== previousMovingAverages.trend) {
       // Cache recommendation
-      await redisClient.sadd([`${market}-crossovers`, `${JSON.stringify({ movingAverageShort, movingAverageLong, trend: movingAverages.trend, price: (movingAverages.buyPrice || movingAverages.sellPrice), timestamp: new Date().getTime() })}`]);
+      await redisClient.zadd([`${market}-crossovers`, new Date().getTime(), `${JSON.stringify({ movingAverageShort, movingAverageLong, trend: movingAverages.trend, price: (movingAverages.buyPrice || movingAverages.sellPrice), timestamp: new Date() })}`]);
 
       // Crossover point
       log.info('poll, trend:  Crossover');
@@ -59,10 +59,6 @@ const poll = market => new Promise(async (resolvePoll) => {
     resolvePoll(movingAverages);
   } catch (pollError) {
     log.error(`poll, error: ${pollError}`);
-    if (pollError.message === 'Not enough market data') {
-      shortPeriod += config.get('strategy.periodIncreaseMilliseconds');
-      log.info(`poll, increased short period: ${helper.millisecondsToHours(shortPeriod)}, ${new Date()}`);
-    }
   }
 });
 
