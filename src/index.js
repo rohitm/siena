@@ -7,7 +7,7 @@ const config = require('config');
 const helper = require('./helper');
 
 const log = logger({ level: logger.INFO });
-let previousRecommendation;
+let previousMovingAverages;
 let shortPeriod = config.get('strategy.shortPeriod');
 
 const redisClient = redis.createClient();
@@ -31,35 +31,32 @@ const poll = market => new Promise(async (resolvePoll) => {
     const [ticker, movingAverageShort, movingAverageLong] = await Promise.all(tasks);
 
     // TODO : Publish to events or rules queue
-    const recommendation = {};
+    const movingAverages = {};
     if (movingAverageShort > movingAverageLong) {
-      recommendation.action = 'BUY';
-      recommendation.buyPrice = ticker.Ask;
+      movingAverages.trend = 'UP';
+      movingAverages.buyPrice = ticker.Ask;
     } else {
-      recommendation.action = 'SELL';
-      recommendation.sellPrice = ticker.Bid;
+      movingAverages.trend = 'DOWN';
+      movingAverages.sellPrice = ticker.Bid;
     }
 
-    if (_.isEqual(recommendation, previousRecommendation)) {
+    if (_.isEqual(movingAverages, previousMovingAverages)) {
       return;
     }
 
-    if (_.has(previousRecommendation, 'action')) {
-      log.info(`${previousRecommendation.action}, ${recommendation.action}`);
-    }
-    if (_.has(previousRecommendation, 'action') && recommendation.action !== previousRecommendation.action) {
+    if (_.has(previousMovingAverages, 'trend') && movingAverages.trend !== previousMovingAverages.trend) {
       // Cache recommendation
-      await redisClient.sadd([`${market}-crossovers`, `${JSON.stringify({ movingAverageShort, movingAverageLong, action: recommendation.action, price: (recommendation.buyPrice || recommendation.sellPrice), timestamp: new Date().getTime() })}`]);
+      await redisClient.sadd([`${market}-crossovers`, `${JSON.stringify({ movingAverageShort, movingAverageLong, trend: movingAverages.trend, price: (movingAverages.buyPrice || movingAverages.sellPrice), timestamp: new Date().getTime() })}`]);
 
       // Crossover point
-      log.info('poll, recommendation:  CROSSOVER');
+      log.info('poll, trend:  Crossover');
     }
-    previousRecommendation = _.cloneDeep(recommendation);
+    previousMovingAverages = _.cloneDeep(movingAverages);
 
     log.info(`poll, movingAverageShort(${helper.millisecondsToHours(shortPeriod)}), ${new Date()}:  ${movingAverageShort}`);
     log.info(`poll, movingAverageLong(${helper.millisecondsToHours(longPeriod)}), ${new Date()}:  ${movingAverageLong}`);
-    log.info(`poll, recommendation : ${recommendation.action} currency in ${market} at price ${(recommendation.buyPrice || recommendation.sellPrice)}`);
-    resolvePoll(recommendation);
+    log.info(`poll, movingAverages : ${market} trending ${movingAverages.trend} at price ${(movingAverages.buyPrice || movingAverages.sellPrice)}`);
+    resolvePoll(movingAverages);
   } catch (pollError) {
     log.error(`poll, error: ${pollError}`);
     if (pollError.message === 'Not enough market data') {
