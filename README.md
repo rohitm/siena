@@ -17,6 +17,18 @@ RULE sell security
   IF (security's simple moving average crossover is breached AND momentum is trending DOWN)
   THEN sell security FOR all held positions
 
+RULE compute momentum
+  IF (security's long term moving average IS GREATER THAN security's short term moving average)
+  THEN momentum is trending DOWN
+
+RULE compute momentum
+  IF (security's long term moving average IS LESSER THAN security's short term moving average)
+  THEN momentum is trending UP
+
+RULE detect crossover
+  IF (security's momentum went from (UP to DOWN) OR (DOWN TO UP) 
+  THEN crossoever has breached
+
 RULE fetch account balance
   IF (any security is sold OR bought)
   THEN get account balance.
