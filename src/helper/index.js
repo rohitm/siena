@@ -16,5 +16,8 @@ const getSoldPricesBetweenPeriod = (marketData, fromTimestamp, toTimestamp) =>
     return (null);
   });
 
+const millisecondsToHours = milliseconds => ((milliseconds > 3600000) ? `${(milliseconds / 3600000).toFixed('1')} hours` : `${(milliseconds / 60000).toFixed('1')} minutes`);
+
 module.exports.cleanBittrexTimestamp = cleanBittrexTimestamp;
 module.exports.getSoldPricesBetweenPeriod = getSoldPricesBetweenPeriod;
+module.exports.millisecondsToHours = millisecondsToHours;
