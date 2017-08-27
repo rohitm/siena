@@ -2,6 +2,7 @@
   "cacheServerPort": 3452,
   "pollIntervalMinutes": 15,
   "cachePeriodInHours": 24,
+  "bittrexMarket": "USDT-ETH",
   "strategy": {
     "shortPeriod": 1125000,
     "shortLongPeriodRatio": 16,
@@ -12,6 +13,7 @@
     "gettickerurl": "https://bittrex.com/api/v1.1/public/getticker"
   },
   "bittrexCache": {
-    "getmarkethistoryurl": "http://localhost:3452/getmarkethistory"
+    "getmarkethistoryurl": "http://localhost:3452/getmarkethistory",
+    "getcrossoverurl": "http://localhost:3452/getCrossovers"
   }
 }
