@@ -71,7 +71,7 @@ const getCrossovers = market => new Promise(async (resolveGet, rejectGet) => red
 
 // Cache Every 15 mins
 log.info(`marketHistoryCache: Polling bittrex for history every ${config.get('pollIntervalMinutes')} minutes, cache length = ${config.get('cachePeriodInHours')} hours`);
-setInterval(() => cacheMarketHistory('USDT-ETH', (3600000 * config.get('cachePeriodInHours'))), config.get('pollIntervalMinutes') * 60 * 1000);
+setInterval(() => cacheMarketHistory(config.get('bittrexMarket'), (3600000 * config.get('cachePeriodInHours'))), config.get('pollIntervalMinutes') * 60 * 1000);
 
 const app = express();
 
