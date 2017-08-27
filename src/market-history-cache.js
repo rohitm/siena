@@ -60,6 +60,15 @@ const getMarketHistory = market => new Promise(async (resolveGet, rejectGet) => 
   return resolveGet(data.map(JSON.parse));
 }));
 
+const getCrossovers = market => new Promise(async (resolveGet, rejectGet) => redisClient.zrange([`${market}-crossovers`, '0', '-1'], (error, data) => {
+  if (error) {
+    return rejectGet(error);
+  }
+
+  // Convert the objects into strings
+  return resolveGet(data.map(JSON.parse));
+}));
+
 // Cache Every 15 mins
 log.info(`marketHistoryCache: Polling bittrex for history every ${config.get('pollIntervalMinutes')} minutes, cache length = ${config.get('cachePeriodInHours')} hours`);
 setInterval(() => cacheMarketHistory('USDT-ETH', (3600000 * config.get('cachePeriodInHours'))), config.get('pollIntervalMinutes') * 60 * 1000);
@@ -74,6 +83,16 @@ app.get('/getMarketHistory', async (req, res) => {
   }
 
   return res.send({ success: true, result: await getMarketHistory(req.query.market) });
+});
+
+app.get('/getCrossovers', async (req, res) => {
+  res.set('Content-Type', 'application/json');
+
+  if (!_.has(req, 'query.market')) {
+    return res.send({ success: false, message: 'need market' });
+  }
+
+  return res.send({ success: true, result: await getCrossovers(req.query.market) });
 });
 
 app.listen(config.get('cacheServerPort'));
