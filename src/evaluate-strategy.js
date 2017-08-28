@@ -42,18 +42,31 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
 
     if (crossoverPoint.trend === 'DOWN' && position.tradeAmount > 0) {
       // Buy
-      position.security = position.tradeAmount / crossoverPoint.price;
-      // log.info(`Buy ${position.security} for ${position.tradeAmount} at ${crossoverPoint.price}`);
+      const securityQty = position.tradeAmount / crossoverPoint.price;
+      const totalCommission = position.tradeAmount * config.get('bittrexCommission');
+      const hypotheticalLowerBuyPrice = (position.tradeAmount - totalCommission) / securityQty;
+
+      position.security = (position.tradeAmount - config.get('bittrexCommission')) / hypotheticalLowerBuyPrice;
+      log.info(`Buy @ ${hypotheticalLowerBuyPrice} insead of ${crossoverPoint.price}`);
+      //log.info(`Buy ${position.security} for ${position.tradeAmount} at ${hypotheticalLowerBuyPrice}`);
       position.tradeAmount = 0;
     } else if (crossoverPoint.trend === 'UP' && position.security > 0) {
       // Sell
-      position.tradeAmount = position.security * crossoverPoint.price;
-      // log.info(`Sell ${position.security} at ${crossoverPoint.price}`);
+      // ( Wanted Higher eth price * security qty) * (1 - bittrex commission) = security qty * actual eth price
+      const hypotheticalHigherSalePrice = (position.security * crossoverPoint.price) / ((1 - config.get('bittrexCommission')) * position.security);
+      log.info(`Sell @ ${hypotheticalHigherSalePrice} instead of ${crossoverPoint.price}`);
+
+      position.tradeAmount = position.security * hypotheticalHigherSalePrice;
+      //log.info(`Sell ${position.security} at ${hypotheticalHigherSalePrice}`);
       position.security = 0;
+
+      // Compartmentalise the amount available to trade
+      position.reserve = position.tradeAmount - tradeAmount;
+      position.tradeAmount -= position.reserve;
     }
 
     return (position);
-  }, { security: 0, tradeAmount });
+  }, { security: 0, tradeAmount, reserve: 0});
   if (strategyResult.security > 0) {
     strategyResult.tradeAmount += strategyResult.security * ticker.Ask;
   }
@@ -68,7 +81,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
   const strategyResultDataFile = 'strategyResultData.txt';
   const strategyResultData = crossoverData.map(crossoverPoint => `${helper.cleanBittrexTimestamp(crossoverPoint.timestamp)},${crossoverPoint.price},${(crossoverPoint.trend === 'UP') ? '1' : '0'} `).join('\n');
 
-  log.info(`Current balance based on strategy : ${strategyResult.tradeAmount}, Current balance if you just bought and sold : ${tradeAmount}`);
+  log.info(`Current balance based on strategy : ${strategyResult.tradeAmount + strategyResult.reserve}, Current balance if you just bought and sold : ${tradeAmount}`);
 
   const tradeHistoryDataFile = 'tradeHistory.txt';
   const matLabFile = 'plotTradeHistory.m';
