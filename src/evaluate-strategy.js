@@ -47,26 +47,41 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
       const hypotheticalLowerBuyPrice = (position.tradeAmount - totalCommission) / securityQty;
 
       position.security = (position.tradeAmount - config.get('bittrexCommission')) / hypotheticalLowerBuyPrice;
-      log.info(`Buy @ ${hypotheticalLowerBuyPrice} insead of ${crossoverPoint.price}`);
-      //log.info(`Buy ${position.security} for ${position.tradeAmount} at ${hypotheticalLowerBuyPrice}`);
+      // log.info(`Buy @ ${hypotheticalLowerBuyPrice} insead of ${crossoverPoint.price}`);
+      log.info(`Buy ${position.security} for ${position.tradeAmount} at ${hypotheticalLowerBuyPrice}`);
       position.tradeAmount = 0;
     } else if (crossoverPoint.trend === 'UP' && position.security > 0) {
       // Sell
       // ( Wanted Higher eth price * security qty) * (1 - bittrex commission) = security qty * actual eth price
       const hypotheticalHigherSalePrice = (position.security * crossoverPoint.price) / ((1 - config.get('bittrexCommission')) * position.security);
-      log.info(`Sell @ ${hypotheticalHigherSalePrice} instead of ${crossoverPoint.price}`);
+      // log.info(`Sell @ ${hypotheticalHigherSalePrice} instead of ${crossoverPoint.price}`);
 
-      position.tradeAmount = position.security * hypotheticalHigherSalePrice;
-      //log.info(`Sell ${position.security} at ${hypotheticalHigherSalePrice}`);
+      const balance = (position.security * hypotheticalHigherSalePrice) * (1 - config.get('bittrexCommission'));
+      log.info(`Sell ${position.security} at ${hypotheticalHigherSalePrice}`);
       position.security = 0;
 
       // Compartmentalise the amount available to trade
-      position.reserve = position.tradeAmount - tradeAmount;
-      position.tradeAmount -= position.reserve;
+      // Move the profits into the reserve ;
+      // Keep the tradable amount only to the limit
+
+      if (balance > tradeAmount) {
+        // Made a profit so move it into the reserve amount
+        position.reserve += balance - tradeAmount;
+        position.tradeAmount = tradeAmount;
+      } else {
+        // Made a loss, so borrow some cash from the reserve
+        const requiredAmount = tradeAmount - balance;
+        if (requiredAmount > position.reserve) {
+          // TODO : We have a problem, Stop trading...
+        } else {
+          position.reserve -= requiredAmount;
+          position.tradeAmount = tradeAmount;
+        }
+      }
     }
 
     return (position);
-  }, { security: 0, tradeAmount, reserve: 0});
+  }, { security: 0, tradeAmount, reserve: 0 });
   if (strategyResult.security > 0) {
     strategyResult.tradeAmount += strategyResult.security * ticker.Ask;
   }
