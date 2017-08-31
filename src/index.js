@@ -63,7 +63,7 @@ const poll = market => new Promise(async (resolvePoll) => {
 
     log.info(`poll, movingAverageShort(${helper.millisecondsToHours(shortPeriod)}), ${new Date()}:  ${movingAverageShort}`);
     log.info(`poll, movingAverageLong(${helper.millisecondsToHours(longPeriod)}), ${new Date()}:  ${movingAverageLong}`);
-    log.info(`poll, movingAverages : ${market} trending ${movingAverages.trend} at price ${(movingAverages.buyPrice || movingAverages.sellPrice)}`);
+    log.info(`poll, movingAverages : ${market} trending ${movingAverages.trend} at price bid:${movingAverages.bidPrice}, ask:${movingAverages.askPrice}`);
     resolvePoll(movingAverages);
   } catch (pollError) {
     log.error(`poll, error: ${pollError}`);
