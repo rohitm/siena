@@ -9,6 +9,7 @@ const helper = require('./helper');
 const log = logger({ level: logger.INFO });
 let previousMovingAverages;
 const shortPeriod = config.get('strategy.shortPeriod');
+const longPeriod = config.get('strategy.longPeriod');
 
 const redisClient = redis.createClient();
 redisClient.on('error', redisError => log.error(redisError));
@@ -19,7 +20,6 @@ const poll = market => new Promise(async (resolvePoll) => {
     // & longer moving average from the cache or bittrex
     const toTimestamp = new Date().getTime();
     const fromTimestampShort = toTimestamp - shortPeriod;
-    const longPeriod = shortPeriod * config.get('strategy.shortLongPeriodRatio');
     const fromTimestampLong = toTimestamp - longPeriod;
 
     const tasks = [
@@ -34,11 +34,11 @@ const poll = market => new Promise(async (resolvePoll) => {
     const movingAverages = {};
     if (movingAverageShort > movingAverageLong) {
       movingAverages.trend = 'UP';
-      movingAverages.buyPrice = ticker.Ask;
     } else {
       movingAverages.trend = 'DOWN';
-      movingAverages.sellPrice = ticker.Bid;
     }
+    movingAverages.bidPrice = ticker.Bid;
+    movingAverages.askPrice = ticker.Ask;
 
     if (_.isEqual(movingAverages, previousMovingAverages)) {
       return;
@@ -46,7 +46,15 @@ const poll = market => new Promise(async (resolvePoll) => {
 
     if (_.has(previousMovingAverages, 'trend') && movingAverages.trend !== previousMovingAverages.trend) {
       // Cache recommendation
-      await redisClient.zadd([`${market}-crossovers`, new Date().getTime(), `${JSON.stringify({ movingAverageShort, movingAverageLong, trend: movingAverages.trend, price: (movingAverages.buyPrice || movingAverages.sellPrice), timestamp: new Date() })}`]);
+      await redisClient.zadd([`${market}-crossovers`, new Date().getTime(), `${JSON.stringify(
+        {
+          movingAverageShort,
+          movingAverageLong,
+          trend: movingAverages.trend,
+          bidPrice: movingAverages.bidPrice,
+          askPrice: movingAverages.askPrice,
+          timestamp: new Date(),
+        })}`]);
 
       // Crossover point
       log.info('poll, trend:  Crossover');
