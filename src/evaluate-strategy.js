@@ -40,29 +40,36 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
   let tradeAmount = 1000; // How much currency you have to trade
   const strategyResult = crossoverData.reduce((accumatedPosition, crossoverPoint) => {
     const position = accumatedPosition;
+    const timeSinceLastTrade = helper.cleanBittrexTimestamp(crossoverPoint.timestamp) - position.lastTradeTime;
 
-    if (crossoverPoint.trend === 'UP' && position.tradeAmount > 0) {
+    // Only buy if the trend is up, you have some amount to trade and it has been atleast an hour since your last trade
+    if (crossoverPoint.trend === 'UP'
+      && position.tradeAmount > 0
+      && timeSinceLastTrade >= config.get('strategy.shortPeriod')) {
+      log.info(`Time since last trade : ${helper.millisecondsToHours(timeSinceLastTrade)}`);
       // Buy at ask price
       // Commission is in USDT
       const quantity = position.tradeAmount / crossoverPoint.askPrice;
-      const hypotheticalLowerBuyPrice = helper.adjustBuyPriceToCommission(position.tradeAmount, quantity);
+      // const hypotheticalLowerBuyPrice = helper.adjustBuyPriceToCommission(position.tradeAmount, quantity);
       const trade = tradeStub.buy(quantity, crossoverPoint.askPrice);
 
       position.security = trade.security;
       position.tradeAmount = 0;
+      position.lastTradeTime = helper.cleanBittrexTimestamp(crossoverPoint.timestamp);
     } else if (crossoverPoint.trend === 'DOWN' && position.security > 0) {
       // Sell at the bid price
       // Commission is in USDT
       // ( Wanted Higher eth price * security qty) * (1 - bittrex commission) = security qty * actual eth price
       const quantity = position.security;
-      const hypotheticalHigherSalePrice = helper.adjustSellPriceToCommission(crossoverPoint.bidPrice);
+      // const hypotheticalHigherSalePrice = helper.adjustSellPriceToCommission(crossoverPoint.bidPrice);
       const trade = tradeStub.sell(quantity, crossoverPoint.bidPrice);
       const balance = trade.total;
       position.security = 0;
+      position.lastTradeTime = helper.cleanBittrexTimestamp(crossoverPoint.timestamp);
+
       // Compartmentalise the amount available to trade
       // Move the profits into the reserve ;
       // Keep the tradable amount only to the limit
-
       if (balance > tradeAmount) {
         log.info(`Gains: ${(balance - tradeAmount)}`);
         // Made a profit so move it into the reserve amount
@@ -86,7 +93,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
 
     log.info('-----');
     return (position);
-  }, { security: 0, tradeAmount, reserve: 0 });
+  }, { security: 0, tradeAmount, reserve: 0, lastTradeTime: null });
   if (strategyResult.security > 0) {
     // Sell off any security
     const trade = tradeStub.sell(strategyResult.security, ticker.Ask);
