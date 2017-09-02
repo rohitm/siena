@@ -6,6 +6,7 @@ const getMarketHistory = require('./lib/get-market-history');
 const helper = require('./helper');
 const _ = require('lodash');
 const fs = require('fs');
+const tradeStub = require('./lib/trade-stub');
 
 const log = logger({ level: logger.INFO });
 
@@ -40,39 +41,42 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
   const strategyResult = crossoverData.reduce((accumatedPosition, crossoverPoint) => {
     const position = accumatedPosition;
 
-    if (crossoverPoint.trend === 'DOWN' && position.tradeAmount > 0) {
-      // Buy
-      const securityQty = position.tradeAmount / crossoverPoint.price;
-      const totalCommission = position.tradeAmount * config.get('bittrexCommission');
-      const hypotheticalLowerBuyPrice = (position.tradeAmount - totalCommission) / securityQty;
+    if (crossoverPoint.trend === 'UP' && position.tradeAmount > 0) {
+      // Buy at ask price
+      // Commission is in USDT
+      const quantity = position.tradeAmount / crossoverPoint.askPrice;
+      const hypotheticalLowerBuyPrice = helper.adjustBuyPriceToCommission(position.tradeAmount, quantity);
+      const trade = tradeStub.buy(quantity, hypotheticalLowerBuyPrice);
 
-      position.security = (position.tradeAmount - config.get('bittrexCommission')) / hypotheticalLowerBuyPrice;
-      // log.info(`Buy @ ${hypotheticalLowerBuyPrice} insead of ${crossoverPoint.price}`);
-      log.info(`Buy ${position.security} for ${position.tradeAmount} at ${hypotheticalLowerBuyPrice}`);
+      position.security = trade.security;
       position.tradeAmount = 0;
-    } else if (crossoverPoint.trend === 'UP' && position.security > 0) {
-      // Sell
+    } else if (crossoverPoint.trend === 'DOWN' && position.security > 0) {
+      // Sell at the bid price
+      // Commission is in USDT
       // ( Wanted Higher eth price * security qty) * (1 - bittrex commission) = security qty * actual eth price
-      const hypotheticalHigherSalePrice = (position.security * crossoverPoint.price) / ((1 - config.get('bittrexCommission')) * position.security);
-      // log.info(`Sell @ ${hypotheticalHigherSalePrice} instead of ${crossoverPoint.price}`);
-
-      const balance = (position.security * hypotheticalHigherSalePrice) * (1 - config.get('bittrexCommission'));
-      log.info(`Sell ${position.security} at ${hypotheticalHigherSalePrice}`);
+      const quantity = position.security;
+      const hypotheticalHigherSalePrice = helper.adjustSellPriceToCommission(crossoverPoint.bidPrice);
+      const trade = tradeStub.sell(quantity, hypotheticalHigherSalePrice);
+      const balance = trade.total;
       position.security = 0;
-
       // Compartmentalise the amount available to trade
       // Move the profits into the reserve ;
       // Keep the tradable amount only to the limit
 
       if (balance > tradeAmount) {
+        log.info(`Gains: ${(balance - tradeAmount)}`);
         // Made a profit so move it into the reserve amount
         position.reserve += balance - tradeAmount;
         position.tradeAmount = tradeAmount;
       } else {
+        log.warn(`Losses: ${(tradeAmount - balance)}`);
         // Made a loss, so borrow some cash from the reserve
         const requiredAmount = tradeAmount - balance;
+        log.warn(`Reserve: ${position.reserve}`);
         if (requiredAmount > position.reserve) {
-          // TODO : We have a problem, Stop trading...
+          log.info('Not enough reserve balance');
+          // TODO : We have a problem, Stop trading maybe...
+          position.tradeAmount = balance;
         } else {
           position.reserve -= requiredAmount;
           position.tradeAmount = tradeAmount;
@@ -80,21 +84,30 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
       }
     }
 
+    log.info('-----');
     return (position);
   }, { security: 0, tradeAmount, reserve: 0 });
   if (strategyResult.security > 0) {
-    strategyResult.tradeAmount += strategyResult.security * ticker.Ask;
+    // Sell off any security
+    const trade = tradeStub.sell(strategyResult.security, ticker.Ask);
+    strategyResult.tradeAmount += trade.total;
   }
 
   // Buy it during the first value of the crossover
-  const security = tradeAmount / crossoverData[0].price;
+  const nonStrategyBuyTrade = tradeStub.buy(tradeAmount / crossoverData[0].askPrice, crossoverData[0].askPrice);
+  const security = nonStrategyBuyTrade.security;
 
-  // Sell it on the current asking price
-  tradeAmount = security * ticker.Ask;
+  // Sell it for the current asking price
+  const nonStrategySellTrade = tradeStub.sell(security, ticker.Ask);
+  tradeAmount = nonStrategySellTrade.total;
 
   // Generate a file with all the buy and sell points.
   const strategyResultDataFile = 'strategyResultData.txt';
-  const strategyResultData = crossoverData.map(crossoverPoint => `${helper.cleanBittrexTimestamp(crossoverPoint.timestamp)},${crossoverPoint.price},${(crossoverPoint.trend === 'UP') ? '1' : '0'} `).join('\n');
+  const strategyResultData = crossoverData.map(crossoverPoint => `
+    ${helper.cleanBittrexTimestamp(crossoverPoint.timestamp)},
+    ${(crossoverPoint.trend === 'UP') ? crossoverPoint.bidPrice : crossoverPoint.sellPrice},
+    ${(crossoverPoint.trend === 'UP') ? '1' : '0'}
+  `).join('\n');
 
   log.info(`Current balance based on strategy : ${strategyResult.tradeAmount + strategyResult.reserve}, Current balance if you just bought and sold : ${tradeAmount}`);
 

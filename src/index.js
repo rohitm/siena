@@ -70,4 +70,4 @@ const poll = market => new Promise(async (resolvePoll) => {
   }
 });
 
-setInterval(() => poll('USDT-ETH'), 1000);
+setInterval(() => poll('USDT-ETH'), 5000);
