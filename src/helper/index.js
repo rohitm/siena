@@ -18,6 +18,10 @@ const getSoldPricesBetweenPeriod = (marketData, fromTimestamp, toTimestamp) =>
   });
 
 const millisecondsToHours = milliseconds => ((milliseconds > 3600000) ? `${(milliseconds / 3600000).toFixed('1')} hours` : `${(milliseconds / 60000).toFixed('1')} minutes`);
+
+// Formula :
+// ( Wanted Higher security price * security qty)
+// * (1 - bittrex commission) = security qty * actual security price
 const adjustSellPriceToCommission = price => price / (1 - config.get('bittrexCommission'));
 const adjustBuyPriceToCommission = (amount, quantity) => (amount * (1 - config.get('bittrexCommission'))) / quantity;
 

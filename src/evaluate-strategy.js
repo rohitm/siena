@@ -38,11 +38,16 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
   const [ticker, crossoverData] = await Promise.all(tasks);
 
   let tradeAmount = 1000; // How much currency you have to trade
+  const buySellPoints = [];
+
   const strategyResult = crossoverData.reduce((accumatedPosition, crossoverPoint) => {
     const position = accumatedPosition;
-    const timeSinceLastTrade = helper.cleanBittrexTimestamp(crossoverPoint.timestamp) - position.lastTradeTime;
+    const timeSinceLastTrade = helper.cleanBittrexTimestamp(crossoverPoint.timestamp) -
+      position.lastTradeTime;
 
-    // Only buy if the trend is up, you have some amount to trade and it has been atleast an hour since your last trade
+    // Only buy if the trend is up, AND
+    // you have some amount to trade, AND
+    // it has been atleast an hour since your last trade
     if (crossoverPoint.trend === 'UP'
       && position.tradeAmount > 0
       && timeSinceLastTrade >= config.get('strategy.shortPeriod')) {
@@ -50,22 +55,23 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
       // Buy at ask price
       // Commission is in USDT
       const quantity = position.tradeAmount / crossoverPoint.askPrice;
-      // const hypotheticalLowerBuyPrice = helper.adjustBuyPriceToCommission(position.tradeAmount, quantity);
       const trade = tradeStub.buy(quantity, crossoverPoint.askPrice);
-
       position.security = trade.security;
       position.tradeAmount = 0;
       position.lastTradeTime = helper.cleanBittrexTimestamp(crossoverPoint.timestamp);
-    } else if (crossoverPoint.trend === 'DOWN' && position.security > 0) {
+      buySellPoints.push(`${helper.cleanBittrexTimestamp(crossoverPoint.timestamp)},${crossoverPoint.askPrice},1`);
+    } else if (
+      crossoverPoint.trend === 'DOWN'
+      && position.security > 0) {
+      log.info(`Time since last trade : ${helper.millisecondsToHours(timeSinceLastTrade)}`);
       // Sell at the bid price
       // Commission is in USDT
-      // ( Wanted Higher eth price * security qty) * (1 - bittrex commission) = security qty * actual eth price
       const quantity = position.security;
-      // const hypotheticalHigherSalePrice = helper.adjustSellPriceToCommission(crossoverPoint.bidPrice);
       const trade = tradeStub.sell(quantity, crossoverPoint.bidPrice);
       const balance = trade.total;
       position.security = 0;
       position.lastTradeTime = helper.cleanBittrexTimestamp(crossoverPoint.timestamp);
+      buySellPoints.push(`${helper.cleanBittrexTimestamp(crossoverPoint.timestamp)},${crossoverPoint.bidPrice},0`);
 
       // Compartmentalise the amount available to trade
       // Move the profits into the reserve ;
@@ -101,7 +107,9 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
   }
 
   // Buy it during the first value of the crossover
-  const nonStrategyBuyTrade = tradeStub.buy(tradeAmount / crossoverData[0].askPrice, crossoverData[0].askPrice);
+  const nonStrategyBuyTrade = tradeStub.buy(
+    tradeAmount / crossoverData[0].askPrice,
+    crossoverData[0].askPrice);
   const security = nonStrategyBuyTrade.security;
 
   // Sell it for the current asking price
@@ -110,7 +118,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
 
   // Generate a file with all the buy and sell points.
   const strategyResultDataFile = 'strategyResultData.txt';
-  const strategyResultData = crossoverData.map(crossoverPoint => `${helper.cleanBittrexTimestamp(crossoverPoint.timestamp)}, ${(crossoverPoint.trend === 'UP') ? crossoverPoint.bidPrice : crossoverPoint.askPrice},${(crossoverPoint.trend === 'UP') ? '1' : '0'}`).join('\n');
+  const strategyResultData = buySellPoints.join('\n');
 
   log.info(`Current balance based on strategy : ${strategyResult.tradeAmount + strategyResult.reserve}, Current balance if you just bought and sold : ${tradeAmount}`);
 
@@ -119,7 +127,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
 
   // Get the market history to plot the data
   const toTimestamp = new Date().getTime();
-  const fromTimestamp24 = toTimestamp - (3600000 * 24); // 24 hours
+  const fromTimestamp24 = toTimestamp - (3600000 * 168); // 24 hours
 
   const marketHistoryData = await getMarketHistory(config.get('bittrexMarket'), fromTimestamp24, toTimestamp, 'bittrexCache');
   const filteredData = helper.getSoldPricesBetweenPeriod(marketHistoryData,
@@ -162,9 +170,18 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
   `;
 
   const fileWriteTasks = [
-    new Promise(async resolveWrite => fs.writeFile(tradeHistoryDataFile, tradeHistoryData, resolveWrite)),
-    new Promise(async resolveWrite => fs.writeFile(strategyResultDataFile, strategyResultData, resolveWrite)),
-    new Promise(async resolveWrite => fs.writeFile(matLabFile, matLabInsructions, resolveWrite)),
+    new Promise(async resolveWrite => fs.writeFile(
+      tradeHistoryDataFile,
+      tradeHistoryData,
+      resolveWrite)),
+    new Promise(async resolveWrite => fs.writeFile(
+      strategyResultDataFile,
+      strategyResultData,
+      resolveWrite)),
+    new Promise(async resolveWrite => fs.writeFile(
+      matLabFile,
+      matLabInsructions,
+      resolveWrite)),
   ];
 
   await Promise.all(fileWriteTasks);
