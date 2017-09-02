@@ -46,7 +46,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
       // Commission is in USDT
       const quantity = position.tradeAmount / crossoverPoint.askPrice;
       const hypotheticalLowerBuyPrice = helper.adjustBuyPriceToCommission(position.tradeAmount, quantity);
-      const trade = tradeStub.buy(quantity, hypotheticalLowerBuyPrice);
+      const trade = tradeStub.buy(quantity, crossoverPoint.askPrice);
 
       position.security = trade.security;
       position.tradeAmount = 0;
@@ -56,7 +56,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
       // ( Wanted Higher eth price * security qty) * (1 - bittrex commission) = security qty * actual eth price
       const quantity = position.security;
       const hypotheticalHigherSalePrice = helper.adjustSellPriceToCommission(crossoverPoint.bidPrice);
-      const trade = tradeStub.sell(quantity, hypotheticalHigherSalePrice);
+      const trade = tradeStub.sell(quantity, crossoverPoint.bidPrice);
       const balance = trade.total;
       position.security = 0;
       // Compartmentalise the amount available to trade
@@ -103,11 +103,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
 
   // Generate a file with all the buy and sell points.
   const strategyResultDataFile = 'strategyResultData.txt';
-  const strategyResultData = crossoverData.map(crossoverPoint => `
-    ${helper.cleanBittrexTimestamp(crossoverPoint.timestamp)},
-    ${(crossoverPoint.trend === 'UP') ? crossoverPoint.bidPrice : crossoverPoint.sellPrice},
-    ${(crossoverPoint.trend === 'UP') ? '1' : '0'}
-  `).join('\n');
+  const strategyResultData = crossoverData.map(crossoverPoint => `${helper.cleanBittrexTimestamp(crossoverPoint.timestamp)}, ${(crossoverPoint.trend === 'UP') ? crossoverPoint.bidPrice : crossoverPoint.askPrice},${(crossoverPoint.trend === 'UP') ? '1' : '0'}`).join('\n');
 
   log.info(`Current balance based on strategy : ${strategyResult.tradeAmount + strategyResult.reserve}, Current balance if you just bought and sold : ${tradeAmount}`);
 
