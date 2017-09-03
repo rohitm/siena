@@ -38,7 +38,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
 
   const [ticker, crossoverData] = await Promise.all(tasks);
 
-  let tradeAmount = 10000; // How much currency you have to trade
+  let tradeAmount = 1000; // How much currency you have to trade
   const account = new Account(tradeAmount);
   const buySellPoints = [];
 
@@ -59,7 +59,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
       const quantity = position.account.getTradeAmount() / crossoverPoint.askPrice;
       const trade = tradeStub.buy(quantity, crossoverPoint.askPrice);
       position.security = trade.security;
-      position.account.debit(position.account.getTradeAmount());
+      position.account.debit(trade.total);
       position.lastTradeTime = helper.cleanBittrexTimestamp(crossoverPoint.timestamp);
       buySellPoints.push(`${helper.cleanBittrexTimestamp(crossoverPoint.timestamp)},${crossoverPoint.askPrice},1`);
     } else if (
@@ -102,7 +102,6 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
   log.info(`Current balance based on strategy : ${strategyResult.account.getBalanceNumber()}, Current balance if you just bought and sold : ${tradeAmount}`);
 
   const tradeHistoryDataFile = 'tradeHistory.txt';
-  const matLabFile = 'plotTradeHistory.m';
 
   // Get the market history to plot the data
   const toTimestamp = new Date().getTime();
@@ -118,35 +117,6 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
   log.info(`Timestamps between ${new Date(Math.min(...timestamps))} and ${new Date(Math.max(...timestamps))} for about ${(Math.max(...timestamps) - Math.min(...timestamps)) / (1000 * 60 * 60)} hours`);
 
   const tradeHistoryData = _.map(filteredData, object => `${helper.cleanBittrexTimestamp(object.TimeStamp)},${object.Price}`).join('\n');
-  const matLabInsructions = `
-    cd ${process.cwd()}
-    tradeHistory=load("${tradeHistoryDataFile}");
-    buySellPoints=load("${strategyResultDataFile}");
-    figure('Color',[0.8 0.8 0.8])
-    plot(tradeHistory(:,1),tradeHistory(:,2),'-k.')
-
-    hold on
-    buySellTimestamps = buySellPoints(:,1)
-    buySellPrices = buySellPoints(:, 2)
-    buyOrSell = buySellPoints(:,3)
-
-    % Plot sell points
-    scatter(buySellTimestamps(buyOrSell == 1), buySellPrices(buyOrSell == 1), 50, 'b', 's')
-
-    % Plot buy points
-
-    scatter(buySellTimestamps(buyOrSell == 0), buySellPrices(buyOrSell == 0), 50, 'r', 'o')
-    hold off
-    startTime=datestr(tradeHistory(1, 1)/86400/1000 + datenum(1970,1,1))
-    endTime=datestr(tradeHistory(end, 1)/86400/1000 + datenum(1970,1,1))
-    middleTime=datestr(tradeHistory(ceil(end/2), 1)/86400/1000 + datenum(1970,1,1))
-    text(tradeHistory(ceil(end/2), 1), tradeHistory(ceil(end/2), 2),middleTime,'Color','red')
-    text(tradeHistory(1, 1), tradeHistory(ceil(end/2), 2), startTime,'Color','red')
-    text(tradeHistory(end, 1), tradeHistory(ceil(end/2), 2), endTime,'Color','red')
-    % movingAverageRef = refline([0 mean(tradeHistory(:,2))])
-    % movingAverageRef.Color = 'g'
-    % text(tradeHistory(1, 1), mean(tradeHistory(:,2)), num2str(mean(tradeHistory(:,2))),'Color','green')
-  `;
 
   const fileWriteTasks = [
     new Promise(async resolveWrite => fs.writeFile(
@@ -156,10 +126,6 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
     new Promise(async resolveWrite => fs.writeFile(
       strategyResultDataFile,
       strategyResultData,
-      resolveWrite)),
-    new Promise(async resolveWrite => fs.writeFile(
-      matLabFile,
-      matLabInsructions,
       resolveWrite)),
   ];
 

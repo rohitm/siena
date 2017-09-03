@@ -1,4 +1,20 @@
-const helper = require('../helper');
+const config = require('config');
+
+const compartmentalise = (amount) => {
+  // Splits the money you have to trade and the rest into reserve
+
+  // Amount available to trade = 80% of the amount or 1000
+  let tradeAmount;
+  const tradeAmountUpperLimit = config.get('sienaAccount.tradeAmountUpperLimit');
+  if (amount >= tradeAmountUpperLimit) {
+    tradeAmount = tradeAmountUpperLimit;
+  } else {
+    tradeAmount = config.get('sienaAccount.tradeAmountPercentage') * amount;
+  }
+
+  const reserve = amount - tradeAmount;
+  return ({ tradeAmount, reserve, total: tradeAmount + reserve });
+};
 
 class Account {
   constructor(balance = 0) {
@@ -6,13 +22,13 @@ class Account {
   }
 
   setBalance(balance) {
-    const compartmentalisedBalance = helper.compartmentalise(balance);
+    const compartmentalisedBalance = compartmentalise(balance);
     this.tradeAmount = compartmentalisedBalance.tradeAmount;
     this.reserve = compartmentalisedBalance.reserve;
   }
 
   getBalance() {
-    return helper.compartmentalise(this.getBalanceNumber());
+    return compartmentalise(this.getBalanceNumber());
   }
 
   getBalanceNumber() {

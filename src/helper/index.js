@@ -25,26 +25,10 @@ const millisecondsToHours = milliseconds => ((milliseconds > 3600000) ? `${(mill
 const adjustSellPriceToCommission = price => price / (1 - config.get('bittrexCommission'));
 const adjustBuyPriceToCommission = (amount, quantity) => (amount * (1 - config.get('bittrexCommission'))) / quantity;
 
-const compartmentalise = (amount) => {
-  // Splits the money you have to trade and the rest into reserve
-
-  // Amount available to trade = 80% of the amount or 1000
-  let tradeAmount;
-  if (amount >= 1000) {
-    tradeAmount = 1000;
-  } else {
-    tradeAmount = 0.80 * amount;
-  }
-
-  const reserve = amount - tradeAmount;
-  return ({ tradeAmount, reserve, total: tradeAmount + reserve });
-};
-
 module.exports = {
   cleanBittrexTimestamp,
   getSoldPricesBetweenPeriod,
   millisecondsToHours,
   adjustSellPriceToCommission,
   adjustBuyPriceToCommission,
-  compartmentalise,
 };
