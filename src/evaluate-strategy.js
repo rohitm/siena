@@ -7,6 +7,7 @@ const helper = require('./helper');
 const _ = require('lodash');
 const fs = require('fs');
 const tradeStub = require('./lib/trade-stub');
+const Account = require('./lib/account');
 
 const log = logger({ level: logger.INFO });
 
@@ -37,7 +38,8 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
 
   const [ticker, crossoverData] = await Promise.all(tasks);
 
-  let tradeAmount = 1000; // How much currency you have to trade
+  let tradeAmount = 10000; // How much currency you have to trade
+  const account = new Account(tradeAmount);
   const buySellPoints = [];
 
   const strategyResult = crossoverData.reduce((accumatedPosition, crossoverPoint) => {
@@ -49,15 +51,15 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
     // you have some amount to trade, AND
     // it has been atleast an hour since your last trade
     if (crossoverPoint.trend === 'UP'
-      && position.tradeAmount > 0
+      && position.account.getBalanceNumber() > 0
       && timeSinceLastTrade >= config.get('strategy.shortPeriod')) {
       log.info(`Time since last trade : ${helper.millisecondsToHours(timeSinceLastTrade)}`);
       // Buy at ask price
       // Commission is in USDT
-      const quantity = position.tradeAmount / crossoverPoint.askPrice;
+      const quantity = position.account.getTradeAmount() / crossoverPoint.askPrice;
       const trade = tradeStub.buy(quantity, crossoverPoint.askPrice);
       position.security = trade.security;
-      position.tradeAmount = 0;
+      position.account.debit(position.account.getTradeAmount());
       position.lastTradeTime = helper.cleanBittrexTimestamp(crossoverPoint.timestamp);
       buySellPoints.push(`${helper.cleanBittrexTimestamp(crossoverPoint.timestamp)},${crossoverPoint.askPrice},1`);
     } else if (
@@ -68,42 +70,19 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
       // Commission is in USDT
       const quantity = position.security;
       const trade = tradeStub.sell(quantity, crossoverPoint.bidPrice);
-      const balance = trade.total;
+      position.account.credit(trade.total);
       position.security = 0;
       position.lastTradeTime = helper.cleanBittrexTimestamp(crossoverPoint.timestamp);
       buySellPoints.push(`${helper.cleanBittrexTimestamp(crossoverPoint.timestamp)},${crossoverPoint.bidPrice},0`);
-
-      // Compartmentalise the amount available to trade
-      // Move the profits into the reserve ;
-      // Keep the tradable amount only to the limit
-      if (balance > tradeAmount) {
-        log.info(`Gains: ${(balance - tradeAmount)}`);
-        // Made a profit so move it into the reserve amount
-        position.reserve += balance - tradeAmount;
-        position.tradeAmount = tradeAmount;
-      } else {
-        log.warn(`Losses: ${(tradeAmount - balance)}`);
-        // Made a loss, so borrow some cash from the reserve
-        const requiredAmount = tradeAmount - balance;
-        log.warn(`Reserve: ${position.reserve}`);
-        if (requiredAmount > position.reserve) {
-          log.info('Not enough reserve balance');
-          // TODO : We have a problem, Stop trading maybe...
-          position.tradeAmount = balance;
-        } else {
-          position.reserve -= requiredAmount;
-          position.tradeAmount = tradeAmount;
-        }
-      }
     }
 
     log.info('-----');
     return (position);
-  }, { security: 0, tradeAmount, reserve: 0, lastTradeTime: null });
+  }, { security: 0, account, lastTradeTime: null });
   if (strategyResult.security > 0) {
     // Sell off any security
     const trade = tradeStub.sell(strategyResult.security, ticker.Ask);
-    strategyResult.tradeAmount += trade.total;
+    strategyResult.account.credit(trade.total);
   }
 
   // Buy it during the first value of the crossover
@@ -120,7 +99,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
   const strategyResultDataFile = 'strategyResultData.txt';
   const strategyResultData = buySellPoints.join('\n');
 
-  log.info(`Current balance based on strategy : ${strategyResult.tradeAmount + strategyResult.reserve}, Current balance if you just bought and sold : ${tradeAmount}`);
+  log.info(`Current balance based on strategy : ${strategyResult.account.getBalanceNumber()}, Current balance if you just bought and sold : ${tradeAmount}`);
 
   const tradeHistoryDataFile = 'tradeHistory.txt';
   const matLabFile = 'plotTradeHistory.m';
