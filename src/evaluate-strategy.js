@@ -39,7 +39,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
   const [ticker, crossoverData] = await Promise.all(tasks);
 
   let tradeAmount = 1000; // How much currency you have to trade
-  const account = new Account(tradeAmount);
+  const account = new Account(config.get('sienaAccount.baseCurrency'), tradeAmount);
   const buySellPoints = [];
 
   const strategyResult = crossoverData.reduce((accumatedPosition, crossoverPoint) => {
