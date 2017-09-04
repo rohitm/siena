@@ -1,73 +1,100 @@
-const movingAverage = require('./lib/moving-average');
-const getTicker = require('./lib/get-ticker');
-const logger = require('cli-logger');
+const RuleEngine = require('node-rules');
 const _ = require('lodash');
-const redis = require('redis');
 const config = require('config');
-const helper = require('./helper');
+const logger = require('cli-logger');
+const redis = require('redis');
 
 const log = logger({ level: logger.INFO });
-let previousMovingAverages;
-const shortPeriod = config.get('strategy.shortPeriod');
-const longPeriod = config.get('strategy.longPeriod');
 
 const redisClient = redis.createClient();
+const redisClientMessageQueue = redis.createClient();
 redisClient.on('error', redisError => log.error(redisError));
 
-const poll = market => new Promise(async (resolvePoll) => {
+let marketTrend;
+
+// Automation rules
+const rules = [{
+  condition: function condition(R) {
+    R.when(_.has(this, 'accountBalance') && (this.accountBalance < config.get('sienaAccount.criticalPoint')));
+  },
+  consequence: function consequence(R) {
+    this.actions = ['sellSecurity', 'halt'];
+    R.stop();
+  },
+}, {
+  condition: function condition(R) {
+    R.when(_.has(this, 'movingAverageShort') &&
+      _.has(this, 'movingAverageLong') &&
+      this.movingAverageShort > this.movingAverageLong);
+  },
+  consequence: function consequence(R) {
+    this.fact = { trend: 'UP' };
+    this.actions = ['infer', 'updateMarketTrend'];
+    R.stop();
+  },
+}, {
+  condition: function condition(R) {
+    R.when(_.has(this, 'movingAverageShort') &&
+      _.has(this, 'movingAverageLong') &&
+      this.movingAverageShort <= this.movingAverageLong);
+  },
+  consequence: function consequence(R) {
+    this.fact = { trend: 'DOWN' };
+    this.actions = ['infer', 'compareMarketTrends'];
+    R.stop();
+  },
+}, {
+  condition: function condition(R) {
+    R.when(_.has(this, 'crossover') &&
+      this.crossover === 'UP');
+  },
+  consequence: function consequence(R) {
+    this.actions = ['buySecurity'];
+    R.stop();
+  },
+}, {
+  condition: function condition(R) {
+    R.when(_.has(this, 'crossover') &&
+      this.crossover === 'DOWN');
+  },
+  consequence: function consequence(R) {
+    this.actions = ['sellSecurity'];
+    R.stop();
+  },
+}];
+
+const compareMarketTrends = (trend) => {
+  // Update the market trend, UP or DOWN
+  if (marketTrend !== undefined && marketTrend !== trend) {
+    redisClientMessageQueue.publish('facts', { crossover: trend });
+  }
+
+  log.info(`updateMarketTrend : ${trend}, ${(marketTrend || 'nevermind')}`);
+  marketTrend = trend;
+};
+
+// initialize the rule engine
+const R = new RuleEngine(rules);
+
+redisClient.on('message', (channel, message) => {
   try {
-    // Get the short moving average from bittrex
-    // & longer moving average from the cache or bittrex
-    const toTimestamp = new Date().getTime();
-    const fromTimestampShort = toTimestamp - shortPeriod;
-    const fromTimestampLong = toTimestamp - longPeriod;
+    const fact = JSON.parse(message);
 
-    const tasks = [
-      getTicker(market),
-      movingAverage(market, fromTimestampShort, toTimestamp),
-      movingAverage(market, fromTimestampLong, toTimestamp, 'bittrexCache'),
-    ];
+    // Pass the fact on to the rule engine for results
+    R.execute(fact, (result) => {
+      log.info(`Siena Rules : fact : ${JSON.stringify(fact)}`);
 
-    const [ticker, movingAverageShort, movingAverageLong] = await Promise.all(tasks);
+      if (_.includes(result.actions, 'infer') && _.has(result, 'fact')) {
+        redisClientMessageQueue.publish('facts', JSON.stringify(result.fact));
+      }
 
-    // TODO : Publish to events or rules queue
-    const movingAverages = {};
-    if (movingAverageShort > movingAverageLong) {
-      movingAverages.trend = 'UP';
-    } else {
-      movingAverages.trend = 'DOWN';
-    }
-    movingAverages.bidPrice = ticker.Bid;
-    movingAverages.askPrice = ticker.Ask;
-
-    if (_.isEqual(movingAverages, previousMovingAverages)) {
-      return;
-    }
-
-    if (_.has(previousMovingAverages, 'trend') && movingAverages.trend !== previousMovingAverages.trend) {
-      // Cache recommendation
-      await redisClient.zadd([`${market}-crossovers`, new Date().getTime(), `${JSON.stringify(
-        {
-          movingAverageShort,
-          movingAverageLong,
-          trend: movingAverages.trend,
-          bidPrice: movingAverages.bidPrice,
-          askPrice: movingAverages.askPrice,
-          timestamp: new Date(),
-        })}`]);
-
-      // Crossover point
-      log.info('poll, trend:  Crossover');
-    }
-    previousMovingAverages = _.cloneDeep(movingAverages);
-
-    log.info(`poll, movingAverageShort(${helper.millisecondsToHours(shortPeriod)}), ${new Date()}:  ${movingAverageShort}`);
-    log.info(`poll, movingAverageLong(${helper.millisecondsToHours(longPeriod)}), ${new Date()}:  ${movingAverageLong}`);
-    log.info(`poll, movingAverages : ${market} trending ${movingAverages.trend} at price bid:${movingAverages.bidPrice}, ask:${movingAverages.askPrice}`);
-    resolvePoll(movingAverages);
-  } catch (pollError) {
-    log.error(`poll, error: ${pollError}`);
+      if (_.includes(result.actions, 'compareMarketTrends') && _.has(result, 'fact.trend')) {
+        compareMarketTrends(result.fact.trend);
+      }
+    });
+  } catch (error) {
+    log.error('Siena Rules : Error : ', error);
   }
 });
 
-setInterval(() => poll('USDT-ETH'), 5000);
+redisClient.subscribe('facts');
