@@ -1,4 +1,5 @@
 const config = require('config');
+const _ = require('lodash');
 
 const compartmentalise = (amount) => {
   // Splits the money you have to trade and the rest into reserve
@@ -17,7 +18,8 @@ const compartmentalise = (amount) => {
 };
 
 class Account {
-  constructor(balance = 0) {
+  constructor(baseCurrency = config.get('sienaAccount.baseCurrency'), balance = 0) {
+    this.baseCurrency = baseCurrency;
     this.setBalance(balance);
   }
 
@@ -25,6 +27,18 @@ class Account {
     const compartmentalisedBalance = compartmentalise(balance);
     this.tradeAmount = compartmentalisedBalance.tradeAmount;
     this.reserve = compartmentalisedBalance.reserve;
+  }
+
+  setBittrexBalance(bittrexBalances) {
+    const account = _.filter(bittrexBalances,
+      bittrexAccount => (bittrexAccount.Currency === this.baseCurrency));
+
+    if (account.length === 0) {
+      return new Error(`${config.get('sienaAccount.baseCurrency')} balance not found on bittrex`);
+    }
+
+    this.setBalance(account[0].Balance);
+    return (this.getBalance());
   }
 
   getBalance() {

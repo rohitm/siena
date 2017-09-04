@@ -3,6 +3,8 @@ const _ = require('lodash');
 const config = require('config');
 const logger = require('cli-logger');
 const redis = require('redis');
+const getBalances = require('./lib/get-balances');
+const Account = require('./lib/account');
 
 const log = logger({ level: logger.INFO });
 
@@ -11,6 +13,7 @@ const redisClientMessageQueue = redis.createClient();
 redisClient.on('error', redisError => log.error(redisError));
 
 let marketTrend;
+const sienaAccount = new Account();
 
 // Automation rules
 const rules = [{
@@ -23,13 +26,21 @@ const rules = [{
   },
 }, {
   condition: function condition(R) {
+    R.when(_.has(this, 'bittrexAccountBalances'));
+  },
+  consequence: function consequence(R) {
+    this.actions = ['compartmentaliseAccount'];
+    R.stop();
+  },
+}, {
+  condition: function condition(R) {
     R.when(_.has(this, 'movingAverageShort') &&
       _.has(this, 'movingAverageLong') &&
       this.movingAverageShort > this.movingAverageLong);
   },
   consequence: function consequence(R) {
     this.fact = { trend: 'UP' };
-    this.actions = ['infer', 'updateMarketTrend'];
+    this.actions = ['infer', 'compareMarketTrends'];
     R.stop();
   },
 }, {
@@ -73,6 +84,11 @@ const compareMarketTrends = (trend) => {
   marketTrend = trend;
 };
 
+const compartmentaliseAccount = (bittrexAccountBalances) => {
+  sienaAccount.setBittrexBalance(bittrexAccountBalances);
+  redisClientMessageQueue.publish('facts', JSON.stringify({ accountBalance: sienaAccount.getBalanceNumber() }));
+};
+
 // initialize the rule engine
 const R = new RuleEngine(rules);
 
@@ -91,6 +107,10 @@ redisClient.on('message', (channel, message) => {
       if (_.includes(result.actions, 'compareMarketTrends') && _.has(result, 'fact.trend')) {
         compareMarketTrends(result.fact.trend);
       }
+
+      if (_.includes(result.actions, 'compartmentaliseAccount') && _.has(result, 'bittrexAccountBalances')) {
+        compartmentaliseAccount(result.bittrexAccountBalances);
+      }
     });
   } catch (error) {
     log.error('Siena Rules : Error : ', error);
@@ -98,3 +118,4 @@ redisClient.on('message', (channel, message) => {
 });
 
 redisClient.subscribe('facts');
+getBalances().then(balances => redisClientMessageQueue.publish('facts', JSON.stringify({ bittrexAccountBalances: balances })));
