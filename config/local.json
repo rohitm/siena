@@ -3,8 +3,8 @@
   "pollIntervalMinutes": 15,
   "cachePeriodInHours": 168,
   "bittrexMarket": "USDT-ETH",
-  "bittrexApiKey": "<SALTED-FILE>",
-  "bittrexApiSecret": "<SALTED-FILE>",
+  "bittrexApiKey": "***",
+  "bittrexApiSecret": "***",
   "bittrexCommission": 0.0025,
   "strategy": {
     "shortPeriod": 3600000,
@@ -12,6 +12,7 @@
   },
   "sienaAccount": {
     "baseCurrency": "USDT",
+    "securityCurrency":"ETH",
     "tradeAmountUpperLimit": 1000,
     "tradeAmountPercentage": 1,
     "criticalPoint": 800
@@ -19,7 +20,9 @@
   "bittrex": {
     "getmarkethistoryurl": "https://bittrex.com/api/v1.1/public/getmarkethistory",
     "gettickerurl": "https://bittrex.com/api/v1.1/public/getticker",
-    "getbalancesurl": "https://bittrex.com/api/v1.1/account/getbalances"
+    "getbalancesurl": "https://bittrex.com/api/v1.1/account/getbalances",
+    "buylimiturl": "https://bittrex.com/api/v1.1/market/buylimit",
+    "selllimiturl": "https://bittrex.com/api/v1.1/market/selllimit"
   },
   "bittrexCache": {
     "getmarkethistoryurl": "http://localhost:3452/getmarkethistory",
