@@ -30,6 +30,7 @@ class Account {
   }
 
   setBittrexBalance(bittrexBalances) {
+    this.bittrexBalances = bittrexBalances;
     const account = _.filter(bittrexBalances,
       bittrexAccount => (bittrexAccount.Currency === this.baseCurrency));
 
@@ -38,7 +39,18 @@ class Account {
     }
 
     this.setBalance(account[0].Balance);
-    return (this.getBalance());
+    return (this.getBittrexBalance(this.baseCurrency));
+  }
+
+  getBittrexBalance(securityCurrency = config.get('sienaAccount.securityCurrency')) {
+    const account = _.filter(this.bittrexBalances,
+      bittrexAccount => (bittrexAccount.Currency === securityCurrency));
+
+    if (account.length === 0) {
+      return new Error(`${securityCurrency} balance not found on bittrex`);
+    }
+
+    return (account[0].Balance);
   }
 
   getBalance() {

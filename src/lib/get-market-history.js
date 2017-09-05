@@ -3,7 +3,7 @@ const config = require('config');
 
 const getMarketHistory = (market, fromTimestamp, toTimestamp, source = 'bittrex') =>
   new Promise((resolveGetMarketHistory, rejectGetMarketHistory) =>
-    request(`${config.get(`${source}.getmarkethistoryurl`)}?market=${market}`, (error, response, body) => {
+    request(`${config.get(`${source}.getmarkethistoryurl`)}?market=${market}`, (error, response) => {
       if (error) {
         return rejectGetMarketHistory(error);
       }

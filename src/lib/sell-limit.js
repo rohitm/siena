@@ -3,8 +3,8 @@ const config = require('config');
 const crypto = require('crypto');
 const qs = require('querystring');
 
-const buyLimit = (market, quantity, rate) => new Promise(
-  async (resolveBuyLimit, rejectBuyLimit) => {
+const sellLimit = (market, quantity, rate) => new Promise(
+  async (resolveSellLimit, rejectSellLimit) => {
     const query = {
       apikey: config.get('bittrexApiKey'),
       nonce: new Date().getTime(),
@@ -13,7 +13,7 @@ const buyLimit = (market, quantity, rate) => new Promise(
       rate,
     };
 
-    const url = `${config.get('bittrex.buylimiturl')}?${qs.stringify(query)}`;
+    const url = `${config.get('bittrex.selllimiturl')}?${qs.stringify(query)}`;
     const apisign = crypto.createHmac('sha512', config.get('bittrexApiSecret')).update(url).digest('hex');
 
     try {
@@ -42,10 +42,10 @@ const buyLimit = (market, quantity, rate) => new Promise(
             return resolve(jsonBody.result);
           })));
 
-      return resolveBuyLimit(order);
+      return resolveSellLimit(order);
     } catch (error) {
-      return rejectBuyLimit(error);
+      return rejectSellLimit(error);
     }
   });
 
-module.exports = buyLimit;
+module.exports = sellLimit;

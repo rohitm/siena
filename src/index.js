@@ -5,6 +5,10 @@ const logger = require('cli-logger');
 const redis = require('redis');
 const getBalances = require('./lib/get-balances');
 const Account = require('./lib/account');
+const getTicker = require('./lib/get-ticker');
+const buyLimit = require('./lib/buy-limit');
+const sellLimit = require('./lib/sell-limit');
+const tradeStub = require('./lib/trade-stub');
 
 const log = logger({ level: logger.INFO });
 
@@ -89,6 +93,50 @@ const compartmentaliseAccount = (bittrexAccountBalances) => {
   redisClientMessageQueue.publish('facts', JSON.stringify({ accountBalance: sienaAccount.getBalanceNumber() }));
 };
 
+const updateBalance = () => getBalances().then(
+  balances => redisClientMessageQueue.publish('facts', JSON.stringify({ bittrexAccountBalances: balances })));
+
+const buySecurity = async () => {
+  const tasks = [
+    getBalances(),
+    getTicker(config.get('bittrexMarket')),
+  ];
+
+  const [bittrexBalances, ticker] = await Promise.all(tasks);
+  sienaAccount.setBittrexBalance(bittrexBalances);
+
+  const buyQuantity = sienaAccount.getTradeAmount() / ticker.Ask;
+  const commission = tradeStub.getCommission(buyQuantity, ticker.Ask);
+  const buyLesserQuantity = (sienaAccount.getTradeAmount() - commission) / ticker.Ask;
+
+  log.info(`buySecurity: Buy ${buyLesserQuantity}${config.get('sienaAccount.securityCurrency')} for ${ticker.Ask}`);
+  const order = await buyLimit(config.get('bittrexMarket'), buyLesserQuantity, ticker.Ask);
+  log.info(`buySecurity, buyOrderUuid: ${order.uuid}`);
+
+  // Assume that this order is filled and then update the balance
+  setTimeout(updateBalance, 10000);
+};
+
+const sellSecurity = async () => {
+  const tasks = [
+    getBalances(),
+    getTicker(config.get('bittrexMarket')),
+  ];
+
+  const [bittrexBalances, ticker] = await Promise.all(tasks);
+  sienaAccount.setBittrexBalance(bittrexBalances);
+
+  const securityQuantity = sienaAccount.getBittrexBalance();
+  if (securityQuantity > 0) {
+    log.info(`sellSecurity: Sell ${securityQuantity}${config.get('sienaAccount.securityCurrency')} for ${ticker.Bid}`);
+    const order = await sellLimit(config.get('bittrexMarket'), securityQuantity, ticker.Bid);
+    log.info(`sellSecurity, sellOrderUuid: ${order.uuid}`);
+
+    // Assume that this order is filled and then update the balance
+    setTimeout(updateBalance, 10000);
+  }
+};
+
 // initialize the rule engine
 const R = new RuleEngine(rules);
 
@@ -111,6 +159,14 @@ redisClient.on('message', (channel, message) => {
       if (_.includes(result.actions, 'compartmentaliseAccount') && _.has(result, 'bittrexAccountBalances')) {
         compartmentaliseAccount(result.bittrexAccountBalances);
       }
+
+      if (_.includes(result.actions, 'buySecurity')) {
+        buySecurity();
+      }
+
+      if (_.includes(result.actions, 'sellSecurity')) {
+        sellSecurity();
+      }
     });
   } catch (error) {
     log.error('Siena Rules : Error : ', error);
@@ -118,4 +174,4 @@ redisClient.on('message', (channel, message) => {
 });
 
 redisClient.subscribe('facts');
-getBalances().then(balances => redisClientMessageQueue.publish('facts', JSON.stringify({ bittrexAccountBalances: balances })));
+updateBalance();

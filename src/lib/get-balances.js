@@ -9,7 +9,7 @@ const getBalances = () => new Promise(async (resolveGetBalances, rejectGetBalanc
   try {
     const balances = await (
       new Promise((resolve, reject) => request({ url, headers: { apisign } },
-        (error, response, body) => {
+        (error, response) => {
           if (error) {
             return reject(error);
           }

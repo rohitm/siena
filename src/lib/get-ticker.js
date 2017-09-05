@@ -5,7 +5,7 @@ const getTicker = (market, source = 'bittrex') => new Promise(async (resolveGetT
   const url = `${config.get(`${source}.gettickerurl`)}?market=${market}`;
 
   try {
-    const ticker = await (new Promise((resolve, reject) => request(url, (error, response, body) => {
+    const ticker = await (new Promise((resolve, reject) => request(url, (error, response) => {
       if (error) {
         return reject(error);
       }
