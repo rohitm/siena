@@ -81,7 +81,7 @@ const rules = [{
 const compareMarketTrends = (trend) => {
   // Update the market trend, UP or DOWN
   if (marketTrend !== undefined && marketTrend !== trend) {
-    redisClientMessageQueue.publish('facts', { crossover: trend });
+    redisClientMessageQueue.publish('facts', JSON.stringify({ crossover: trend }));
   }
 
   log.info(`updateMarketTrend : ${trend}, ${(marketTrend || 'nevermind')}`);
