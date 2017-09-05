@@ -1,13 +1,22 @@
 const request = require('request');
 const config = require('config');
 const crypto = require('crypto');
+const qs = require('querystring');
 
-const getBalances = () => new Promise(async (resolveGetBalances, rejectGetBalances) => {
-  const url = `${config.get('bittrex.getbalancesurl')}?apikey=${config.get('bittrexApiKey')}&nonce=${new Date().getTime()}`;
+const buyLimit = (market, quantity, rate) => new Promise(async (resolveBuyLimit, rejectBuyLimit) => {
+  const query = {
+    apikey: config.get('bittrexApiKey'),
+    nonce: new Date().getTime(),
+    market,
+    quantity,
+    rate,
+  };
+
+  const url = `${config.get('bittrex.buylimiturl')}?${qs.stringify(query)}`;
   const apisign = crypto.createHmac('sha512', config.get('bittrexApiSecret')).update(url).digest('hex');
 
   try {
-    const balances = await (
+    const order = await (
       new Promise((resolve, reject) => request({ url, headers: { apisign } },
         (error, response, body) => {
           if (error) {
@@ -32,10 +41,10 @@ const getBalances = () => new Promise(async (resolveGetBalances, rejectGetBalanc
           return resolve(jsonBody.result);
         })));
 
-    return resolveGetBalances(balances);
+    return resolveBuyLimit(order);
   } catch (error) {
-    return rejectGetBalances(error);
+    return rejectBuyLimit(error);
   }
 });
 
-module.exports = getBalances;
+module.exports = buyLimit;

@@ -21,7 +21,7 @@ const getBittrexMarketHistory = market => new Promise(async (resolveHistory, rej
 
   if (jsonBody.success !== true) {
     log.error(`getBittrexMarketHistory: Non success response ${JSON.stringify(body)}, market=${market}`);
-    return rejectHistory(new Error(body.message || 'Unknown error'));
+    return rejectHistory(new Error(jsonBody.message || 'Unknown error'));
   }
 
   return resolveHistory(jsonBody.result);

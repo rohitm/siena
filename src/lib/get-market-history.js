@@ -20,7 +20,7 @@ const getMarketHistory = (market, fromTimestamp, toTimestamp, source = 'bittrex'
       }
 
       if (jsonBody.success !== true) {
-        return rejectGetMarketHistory(new Error(body.message || 'Unknown error'));
+        return rejectGetMarketHistory(new Error(jsonBody.message || 'Unknown error'));
       }
 
       return resolveGetMarketHistory(jsonBody.result);

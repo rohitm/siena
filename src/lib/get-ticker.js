@@ -22,7 +22,7 @@ const getTicker = (market, source = 'bittrex') => new Promise(async (resolveGetT
       }
 
       if (jsonBody.success !== true) {
-        return reject(new Error(body.message || 'Unknown error'));
+        return reject(new Error(jsonBody.message || 'Unknown error'));
       }
 
       return resolve(jsonBody.result);
