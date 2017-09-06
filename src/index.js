@@ -22,7 +22,7 @@ const sienaAccount = new Account();
 // Automation rules
 const rules = [{
   condition: function condition(R) {
-    R.when(_.has(this, 'accountBalance') && (this.accountBalance < config.get('sienaAccount.criticalPoint')));
+    R.when(_.has(this, 'netAssetValue') && (this.netAssetValue < config.get('sienaAccount.criticalPoint')));
   },
   consequence: function consequence(R) {
     this.actions = ['sellSecurity', 'halt'];
