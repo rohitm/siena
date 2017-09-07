@@ -27,13 +27,21 @@ const getNetAssetValue = fiatCurrency => new Promise(
 
             const wantedCurrencies = _.filter(jsonBody, currency => _.includes(
               bittrexBalances.map(account => account.Currency), currency.symbol));
-            const currencyPriceMatrix = {};
-            wantedCurrencies.map(currency => {
-              return currencyPriceMatrix[currency.symbol] = currency[`price_${fiatCurrency.toLowerCase()}`];
-            });
+
+            const currencyPriceMatrix = wantedCurrencies.map((currency) => {
+              const returnObj = {};
+              returnObj[`${currency.symbol}`] = currency[`price_${fiatCurrency.toLowerCase()}`];
+              return returnObj;
+            }).reduce((accumulatedCurrencyPriceMatrix, fiatCurrencyPrice) => {
+              const returnArray = [];
+              returnArray[_.keys(fiatCurrencyPrice)[0]] = _.values(fiatCurrencyPrice)[0];
+              return returnArray;
+            }, {});
 
             return resolve(bittrexBalances.reduce(
-              (accumulatedBalance, currentBalance) => currencyPriceMatrix[currentBalance.Currency] * currentBalance.Balance));
+              (accumulatedBalance, currentBalance) =>
+                (currencyPriceMatrix[currentBalance.Currency] * currentBalance.Balance)
+              , 0).toFixed(2));
           })));
 
       return resolveGetNetAssetValue(netAssetValue);
