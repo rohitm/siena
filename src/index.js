@@ -17,6 +17,7 @@ const redisClientMessageQueue = redis.createClient();
 redisClient.on('error', redisError => log.error(redisError));
 
 let marketTrend;
+let lastTradeTime;
 const sienaAccount = new Account();
 
 // Automation rules
@@ -93,8 +94,11 @@ const compartmentaliseAccount = (bittrexAccountBalances) => {
   redisClientMessageQueue.publish('facts', JSON.stringify({ accountBalance: sienaAccount.getBalanceNumber() }));
 };
 
-const updateBalance = () => getBalances().then(
-  balances => redisClientMessageQueue.publish('facts', JSON.stringify({ bittrexAccountBalances: balances })));
+const updateBalance = async () => {
+  const balances = await getBalances();
+  redisClientMessageQueue.publish('facts', JSON.stringify({ bittrexAccountBalances: balances }));
+  return balances;
+}
 
 const buySecurity = async () => {
   const tasks = [
@@ -112,9 +116,18 @@ const buySecurity = async () => {
   log.info(`buySecurity: Buy ${buyLesserQuantity}${config.get('sienaAccount.securityCurrency')} for ${ticker.Ask}`);
   const order = await buyLimit(config.get('bittrexMarket'), buyLesserQuantity, ticker.Ask);
   log.info(`buySecurity, buyOrderUuid: ${order.uuid}`);
+  const trade = tradeStub.buy(buyLesserQuantity, ticker.Ask);
+  const expectedBalance = sienaAccount.getBalanceNumber() - trade.total;
 
   // Assume that this order is filled and then update the balance
-  setTimeout(updateBalance, 10000);
+  setTimeout(async () => {
+    const account = new Account();
+    const balanceAfterBuyOrder = account.setBittrexBalance(await updateBalance());
+    if(balance === expectedBalance) {
+      // Buy was successful
+      lastTradeTime = new Date().getTime();
+    }
+  }, 10000);
 };
 
 const sellSecurity = async () => {
