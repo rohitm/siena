@@ -2,7 +2,7 @@ const getBalances = require('./get-balances');
 const request = require('request');
 const _ = require('lodash');
 
-const getNetAssetValue = fiatCurrency => new Promise(
+const getNetAssetValue = (fiatCurrency = 'USD') => new Promise(
   async (resolveGetNetAssetValue, rejectGetNetAssetValue) => {
     const url = `https://api.coinmarketcap.com/v1/ticker/?convert=${fiatCurrency}`;
     try {
