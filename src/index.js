@@ -148,7 +148,7 @@ const sellSecurity = async () => {
     // Assume that this order is filled and then update the balance
     setTimeout(updateBalance, 10000);
   } else {
-    log.info(`sellSecurity: No security to Sell`);
+    log.info('sellSecurity: No security to Sell');
   }
 };
 
