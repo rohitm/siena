@@ -35,12 +35,12 @@ const getNetAssetValue = (fiatCurrency = 'USD') => new Promise(
             }).reduce((accumulatedCurrencyPriceMatrix, fiatCurrencyPrice) => {
               const returnArray = [];
               returnArray[_.keys(fiatCurrencyPrice)[0]] = _.values(fiatCurrencyPrice)[0];
-              return returnArray;
+              return _.merge(returnArray, accumulatedCurrencyPriceMatrix);
             }, {});
 
             return resolve(bittrexBalances.reduce(
-              (accumulatedBalance, currentBalance) =>
-                (currencyPriceMatrix[currentBalance.Currency] * currentBalance.Balance)
+              (accumulatedBalance, currentBalance) => (accumulatedBalance + (
+                currencyPriceMatrix[currentBalance.Currency] * currentBalance.Balance))
               , 0).toFixed(2));
           })));
 
