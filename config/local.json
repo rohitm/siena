@@ -7,8 +7,8 @@
   "bittrexApiSecret": "***",
   "bittrexCommission": 0.0025,
   "strategy": {
-    "shortPeriod": 3600000,
-    "longPeriod": 21600000
+    "shortPeriod": 1800000,
+    "longPeriod": 25200000
   },
   "sienaAccount": {
     "baseCurrency": "USDT",
