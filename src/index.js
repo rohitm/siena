@@ -9,6 +9,7 @@ const getTicker = require('./lib/get-ticker');
 const buyLimit = require('./lib/buy-limit');
 const sellLimit = require('./lib/sell-limit');
 const tradeStub = require('./lib/trade-stub');
+const helper = require('./helper');
 
 const log = logger({ level: logger.INFO });
 
@@ -17,7 +18,7 @@ const redisClientMessageQueue = redis.createClient();
 redisClient.on('error', redisError => log.error(redisError));
 
 let marketTrend;
-let lastTradeTime;
+let lastTradeTime = 0;
 const sienaAccount = new Account();
 
 // Automation rules
@@ -98,13 +99,27 @@ const updateBalance = async () => {
   const balances = await getBalances();
   redisClientMessageQueue.publish('facts', JSON.stringify({ bittrexAccountBalances: balances }));
   return balances;
-}
+};
+
+const updateLastTradeTime = async (expectedBalance) => {
+  const account = new Account();
+  const balance = account.setBittrexBalance(await updateBalance());
+  log.info(`updateLastTradeTime: actual balance:${balance}, expected balance: ${expectedBalance}.`);
+  if (balance === expectedBalance) {
+    // Buy was successful
+    lastTradeTime = new Date().getTime();
+  }
+};
 
 const buySecurity = async () => {
   const tasks = [
     getBalances(),
     getTicker(config.get('bittrexMarket')),
   ];
+  const timeSinceLastTrade = new Date().getTime() - lastTradeTime;
+  if (timeSinceLastTrade < config.get('strategy.shortPeriod')) {
+    log.info(`buySecurity, timeSinceLastTrade: ${helper.millisecondsToHours(timeSinceLastTrade)}. Passing buy signal.`);
+  }
 
   const [bittrexBalances, ticker] = await Promise.all(tasks);
   sienaAccount.setBittrexBalance(bittrexBalances);
@@ -119,15 +134,8 @@ const buySecurity = async () => {
   const trade = tradeStub.buy(buyLesserQuantity, ticker.Ask);
   const expectedBalance = sienaAccount.getBalanceNumber() - trade.total;
 
-  // Assume that this order is filled and then update the balance
-  setTimeout(async () => {
-    const account = new Account();
-    const balanceAfterBuyOrder = account.setBittrexBalance(await updateBalance());
-    if(balance === expectedBalance) {
-      // Buy was successful
-      lastTradeTime = new Date().getTime();
-    }
-  }, 10000);
+  // Assume that this order gets filled and then update the balance
+  setTimeout(updateLastTradeTime(expectedBalance), 10000);
 };
 
 const sellSecurity = async () => {
@@ -144,9 +152,11 @@ const sellSecurity = async () => {
     log.info(`sellSecurity: Sell ${securityQuantity}${config.get('sienaAccount.securityCurrency')} for ${ticker.Bid}`);
     const order = await sellLimit(config.get('bittrexMarket'), securityQuantity, ticker.Bid);
     log.info(`sellSecurity, sellOrderUuid: ${order.uuid}`);
+    const trade = tradeStub.sell(securityQuantity, ticker.Bid);
+    const expectedBalance = sienaAccount.getBalanceNumber() + trade.total;
 
-    // Assume that this order is filled and then update the balance
-    setTimeout(updateBalance, 10000);
+    // Assume that this order gets filled and then update the balance
+    setTimeout(updateLastTradeTime(expectedBalance), 10000);
   } else {
     log.info('sellSecurity: No security to Sell');
   }

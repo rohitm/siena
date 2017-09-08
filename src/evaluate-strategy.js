@@ -57,7 +57,11 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
       // Buy at ask price
       // Commission is in USDT
       const quantity = position.account.getTradeAmount() / crossoverPoint.askPrice;
-      const trade = tradeStub.buy(quantity, crossoverPoint.askPrice);
+      const commission = tradeStub.getCommission(quantity, crossoverPoint.askPrice);
+      const buyLesserQuantity = (position.account.getTradeAmount() - commission)
+        / crossoverPoint.askPrice;
+      const trade = tradeStub.buy(buyLesserQuantity, crossoverPoint.askPrice);
+
       position.security = trade.security;
       position.account.debit(trade.total);
       position.lastTradeTime = helper.cleanBittrexTimestamp(crossoverPoint.timestamp);
