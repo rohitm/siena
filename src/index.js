@@ -105,9 +105,10 @@ const updateLastTradeTime = async (expectedBalance) => {
   const account = new Account();
   const balance = account.setBittrexBalance(await updateBalance());
   log.info(`updateLastTradeTime: actual balance:${balance}, expected balance: ${expectedBalance}.`);
-  if (balance === expectedBalance) {
+  if (balance.toFixed(3) === expectedBalance.toFixed(3)) {
     // Buy was successful
     lastTradeTime = new Date().getTime();
+    log.info(`lastTradeTime: ${lastTradeTime}`);
   }
 };
 
@@ -135,7 +136,7 @@ const buySecurity = async () => {
   const expectedBalance = sienaAccount.getBalanceNumber() - trade.total;
 
   // Assume that this order gets filled and then update the balance
-  setTimeout(updateLastTradeTime(expectedBalance), 10000);
+  setTimeout(() => { updateLastTradeTime(expectedBalance); }, 10000);
 };
 
 const sellSecurity = async () => {
@@ -156,7 +157,7 @@ const sellSecurity = async () => {
     const expectedBalance = sienaAccount.getBalanceNumber() + trade.total;
 
     // Assume that this order gets filled and then update the balance
-    setTimeout(updateLastTradeTime(expectedBalance), 10000);
+    setTimeout(() => { updateLastTradeTime(expectedBalance); }, 10000);
   } else {
     log.info('sellSecurity: No security to Sell');
   }
