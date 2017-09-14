@@ -19,6 +19,7 @@ redisClient.on('error', redisError => log.error(redisError));
 
 let marketTrend;
 let lastTradeTime = 0;
+let lastBuyPrice = 0;
 const sienaAccount = new Account();
 
 // Automation rules
@@ -41,11 +42,22 @@ const rules = [{
 }, {
   condition: function condition(R) {
     R.when(_.has(this, 'movingAverageShort') &&
-      _.has(this, 'movingAverageLong') &&
-      this.movingAverageShort > this.movingAverageLong);
+      _.has(this, 'movingAverageMid') &&
+      this.movingAverageShort > this.movingAverageMid);
   },
   consequence: function consequence(R) {
     this.fact = { trend: 'UP' };
+    this.actions = ['infer', 'compareMarketTrends'];
+    R.stop();
+  },
+}, {
+  condition: function condition(R) {
+    R.when(_.has(this, 'movingAverageShort') &&
+      _.has(this, 'movingAverageMid') &&
+      this.movingAverageShort <= this.movingAverageMid);
+  },
+  consequence: function consequence(R) {
+    this.fact = { trend: 'DOWN' };
     this.actions = ['infer', 'compareMarketTrends'];
     R.stop();
   },
@@ -56,14 +68,17 @@ const rules = [{
       this.movingAverageShort <= this.movingAverageLong);
   },
   consequence: function consequence(R) {
-    this.fact = { trend: 'DOWN' };
+    this.fact = { trend: 'BEAR' };
     this.actions = ['infer', 'compareMarketTrends'];
     R.stop();
   },
 }, {
   condition: function condition(R) {
     R.when(_.has(this, 'crossover') &&
-      this.crossover === 'UP');
+      _.has(this, 'currentTime') &&
+      _.has(this, 'lastTradeTime') &&
+      this.crossover === 'UP' &&
+      (this.currentTime - this.lastTradeTime) >= config.get('strategy.shortPeriod'));
   },
   consequence: function consequence(R) {
     this.actions = ['buySecurity'];
@@ -72,7 +87,19 @@ const rules = [{
 }, {
   condition: function condition(R) {
     R.when(_.has(this, 'crossover') &&
-      this.crossover === 'DOWN');
+      _.has(this, 'currentAskPrice') &&
+      _.has(this, 'lastBuyPrice') &&
+      this.crossover === 'DOWN' &&
+      this.currentAskPrice > this.lastBuyPrice);
+  },
+  consequence: function consequence(R) {
+    this.actions = ['sellSecurity'];
+    R.stop();
+  },
+}, {
+  condition: function condition(R) {
+    R.when(_.has(this, 'crossover') &&
+      this.crossover === 'BEAR');
   },
   consequence: function consequence(R) {
     this.actions = ['sellSecurity'];
@@ -80,10 +107,21 @@ const rules = [{
   },
 }];
 
-const compareMarketTrends = (trend) => {
+const compareMarketTrends = async (trend) => {
   // Update the market trend, UP or DOWN
   if (marketTrend !== undefined && marketTrend !== trend) {
-    redisClientMessageQueue.publish('facts', JSON.stringify({ crossover: trend }));
+    const fact = { crossover: trend,
+      currentTime: new Date().getTime(),
+      lastTradeTime,
+    };
+
+    if (lastBuyPrice > 0) {
+      fact.lastBuyPrice = lastBuyPrice;
+      const ticker = await getTicker(config.get('bittrexMarket'));
+      fact.currentAskPrice = ticker.Ask;
+    }
+
+    redisClientMessageQueue.publish('facts', JSON.stringify(fact));
   }
 
   log.info(`updateMarketTrend : ${trend}, ${(marketTrend || 'nevermind')}`);
@@ -101,14 +139,16 @@ const updateBalance = async () => {
   return balances;
 };
 
-const updateLastTradeTime = async (expectedBalance) => {
+const updateLastTradeTime = async (expectedBalance, price = undefined) => {
   const account = new Account();
   const balance = account.setBittrexBalance(await updateBalance());
   log.info(`updateLastTradeTime: actual balance:${balance}, expected balance: ${expectedBalance}.`);
   if (balance.toFixed(3) === expectedBalance.toFixed(3)) {
+    lastBuyPrice = price;
+
     // Buy was successful
     lastTradeTime = new Date().getTime();
-    log.info(`lastTradeTime: ${lastTradeTime}`);
+    log.info(`lastTradeTime: ${lastTradeTime}, lastBuyPrice: ${(lastBuyPrice || 'nevermind')}`);
   }
 };
 
@@ -136,7 +176,7 @@ const buySecurity = async () => {
   const expectedBalance = sienaAccount.getBalanceNumber() - trade.total;
 
   // Assume that this order gets filled and then update the balance
-  setTimeout(() => { updateLastTradeTime(expectedBalance); }, 10000);
+  setTimeout(() => { updateLastTradeTime(expectedBalance, ticker.Ask); }, 10000);
 };
 
 const sellSecurity = async () => {

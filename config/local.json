@@ -8,7 +8,8 @@
   "bittrexCommission": 0.0025,
   "strategy": {
     "shortPeriod": 1800000,
-    "longPeriod": 25200000
+    "midPeriod": 18000000,
+    "longPeriod": 46800000,
   },
   "sienaAccount": {
     "baseCurrency": "USDT",

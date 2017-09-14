@@ -9,6 +9,7 @@ const helper = require('./helper');
 const log = logger({ level: logger.INFO });
 let previousMovingAverages;
 const shortPeriod = config.get('strategy.shortPeriod');
+const midPeriod = config.get('strategy.midPeriod');
 const longPeriod = config.get('strategy.longPeriod');
 
 const redisClient = redis.createClient();
@@ -20,18 +21,25 @@ const poll = market => new Promise(async (resolvePoll) => {
     // & longer moving average from the cache or bittrex
     const toTimestamp = new Date().getTime();
     const fromTimestampShort = toTimestamp - shortPeriod;
+    const fromTimestampMid = toTimestamp - midPeriod;
     const fromTimestampLong = toTimestamp - longPeriod;
 
     const tasks = [
       getTicker(market),
       movingAverage(market, fromTimestampShort, toTimestamp),
+      movingAverage(market, fromTimestampMid, toTimestamp, 'bittrexCache'),
       movingAverage(market, fromTimestampLong, toTimestamp, 'bittrexCache'),
     ];
 
-    const [ticker, movingAverageShort, movingAverageLong] = await Promise.all(tasks);
+    const [
+      ticker,
+      movingAverageShort,
+      movingAverageMid,
+      movingAverageLong,
+    ] = await Promise.all(tasks);
 
     // Publish to a rules message queue
-    redisClient.publish('facts', JSON.stringify({ movingAverageLong, movingAverageShort }));
+    redisClient.publish('facts', JSON.stringify({ movingAverageLong, movingAverageMid, movingAverageShort }));
     const movingAverages = {};
     if (movingAverageShort > movingAverageLong) {
       movingAverages.trend = 'UP';
