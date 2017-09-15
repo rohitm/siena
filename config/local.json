@@ -9,7 +9,7 @@
   "strategy": {
     "shortPeriod": 1800000,
     "midPeriod": 18000000,
-    "longPeriod": 46800000,
+    "longPeriod": 46800000
   },
   "sienaAccount": {
     "baseCurrency": "USDT",
