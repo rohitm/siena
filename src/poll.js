@@ -41,11 +41,16 @@ const poll = market => new Promise(async (resolvePoll) => {
     // Publish to a rules message queue
     redisClient.publish('facts', JSON.stringify({ movingAverageLong, movingAverageMid, movingAverageShort }));
     const movingAverages = {};
-    if (movingAverageShort > movingAverageLong) {
+    if (movingAverageShort > movingAverageMid) {
       movingAverages.trend = 'UP';
     } else {
       movingAverages.trend = 'DOWN';
     }
+
+    if (movingAverageShort <= movingAverageLong) {
+      movingAverages.market = 'BEAR';
+    }
+
     movingAverages.bidPrice = ticker.Bid;
     movingAverages.askPrice = ticker.Ask;
 
@@ -55,15 +60,21 @@ const poll = market => new Promise(async (resolvePoll) => {
 
     if (_.has(previousMovingAverages, 'trend') && movingAverages.trend !== previousMovingAverages.trend) {
       // Cache recommendation
-      await redisClient.zadd([`${market}-crossovers`, new Date().getTime(), `${JSON.stringify(
-        {
-          movingAverageShort,
-          movingAverageLong,
-          trend: movingAverages.trend,
-          bidPrice: movingAverages.bidPrice,
-          askPrice: movingAverages.askPrice,
-          timestamp: new Date(),
-        })}`]);
+      const crossoverData = {
+        movingAverageShort,
+        movingAverageMid,
+        movingAverageLong,
+        trend: movingAverages.trend,
+        bidPrice: movingAverages.bidPrice,
+        askPrice: movingAverages.askPrice,
+        timestamp: new Date(),
+      };
+
+      if (_.has(movingAverages, 'market')) {
+        crossoverData.market = movingAverages.market;
+      }
+
+      await redisClient.zadd([`${market}-crossovers`, new Date().getTime(), `${JSON.stringify(crossoverData)}`]);
 
       // Crossover point
       log.info('poll, trend:  Crossover');
@@ -71,8 +82,12 @@ const poll = market => new Promise(async (resolvePoll) => {
     previousMovingAverages = _.cloneDeep(movingAverages);
 
     log.info(`poll, movingAverageShort(${helper.millisecondsToHours(shortPeriod)}), ${new Date()}:  ${movingAverageShort}`);
+    log.info(`poll, movingAverageMid(${helper.millisecondsToHours(midPeriod)}), ${new Date()}:  ${movingAverageMid}`);
     log.info(`poll, movingAverageLong(${helper.millisecondsToHours(longPeriod)}), ${new Date()}:  ${movingAverageLong}`);
     log.info(`poll, movingAverages : ${market} trending ${movingAverages.trend} at price bid:${movingAverages.bidPrice}, ask:${movingAverages.askPrice}`);
+    if (_.has(movingAverages, 'market')) {
+      log.info(`poll, market : ${movingAverages.market}`);
+    }
     resolvePoll(movingAverages);
   } catch (pollError) {
     log.error(`poll, error: ${pollError}`);
