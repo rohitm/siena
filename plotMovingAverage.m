@@ -4,6 +4,7 @@ buySellPoints=load("strategyResultData.txt");
 seconds = tradeHistory(1, 1):1000:tradeHistory(end, 1);
 movingAverages1 = [];
 movingAverages2 = [];
+movingAverages3 = [];
 
 buySellTimestamps = buySellPoints(:,1);
 buySellPrices = buySellPoints(:, 2);
