@@ -38,7 +38,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
 
   const [ticker, crossoverData] = await Promise.all(tasks);
 
-  let tradeAmount = 428; // How much currency you have to trade
+  let tradeAmount = 100; // How much currency you have to trade
   const account = new Account(config.get('sienaAccount.baseCurrency'), tradeAmount);
   const buySellPoints = [];
 
@@ -51,7 +51,8 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
     // you have some amount to trade, AND
     // it has been atleast an hour since your last trade
     if (crossoverPoint.trend === 'UP'
-      && position.account.getBalanceNumber() > 0
+      && crossoverPoint.market !== 'BEAR'
+      && position.account.getBalanceNumber() > 1
       && timeSinceLastTrade >= config.get('strategy.shortPeriod')) {
       log.info(`Time since last trade : ${helper.millisecondsToHours(timeSinceLastTrade)}`);
       // Buy at ask price
@@ -65,10 +66,18 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
       position.security = trade.security;
       position.account.debit(trade.total);
       position.lastTradeTime = helper.cleanBittrexTimestamp(crossoverPoint.timestamp);
+      position.lastBuyPrice = crossoverPoint.askPrice;
       buySellPoints.push(`${helper.cleanBittrexTimestamp(crossoverPoint.timestamp)},${crossoverPoint.askPrice},1`);
     } else if (
-      crossoverPoint.trend === 'DOWN'
-      && position.security > 0) {
+      (
+        (
+          crossoverPoint.trend === 'DOWN' &&
+          crossoverPoint.bidPrice > crossoverPoint.lastBuyPrice
+        ) ||
+        (
+          crossoverPoint.trend === 'BEAR'
+        )
+      ) && position.security > 0) {
       log.info(`Time since last trade : ${helper.millisecondsToHours(timeSinceLastTrade)}`);
       // Sell at the bid price
       // Commission is in USDT
