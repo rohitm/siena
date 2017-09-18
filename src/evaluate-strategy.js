@@ -50,6 +50,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
     // Only buy if the trend is up, AND
     // you have some amount to trade, AND
     // it has been atleast an hour since your last trade
+    log.info(`trend:${crossoverPoint.trend}, market:${(crossoverPoint.market || 'nevermind')}, balance:${position.account.getBalanceNumber()}, timeSinceLastTrade: ${helper.millisecondsToHours(timeSinceLastTrade)}, lastBuyPrice: ${(position.lastBuyPrice || 'nevermind')}, bidPrice: ${crossoverPoint.bidPrice}, securityBalance: ${position.security}`);
     if (crossoverPoint.trend === 'UP'
       && crossoverPoint.market !== 'BEAR'
       && position.account.getBalanceNumber() > 1
@@ -72,13 +73,12 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
       (
         (
           crossoverPoint.trend === 'DOWN' &&
-          crossoverPoint.bidPrice > crossoverPoint.lastBuyPrice
+          crossoverPoint.bidPrice > position.lastBuyPrice
         ) ||
         (
           crossoverPoint.trend === 'BEAR'
         )
       ) && position.security > 0) {
-      log.info(`Time since last trade : ${helper.millisecondsToHours(timeSinceLastTrade)}`);
       // Sell at the bid price
       // Commission is in USDT
       const quantity = position.security;
@@ -89,7 +89,6 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
       buySellPoints.push(`${helper.cleanBittrexTimestamp(crossoverPoint.timestamp)},${crossoverPoint.bidPrice},0`);
     }
 
-    log.info('-----');
     return (position);
   }, { security: 0, account, lastTradeTime: null });
   if (strategyResult.security > 0) {

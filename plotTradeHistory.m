@@ -1,4 +1,5 @@
-tradeHistory=load("tradeHistory.txt");
+roughTradeHistory=load("tradeHistory.txt");
+tradeHistory = [smoothdata(roughTradeHistory(:,1)), smoothdata(roughTradeHistory(:,2))];
 buySellPoints=load("strategyResultData.txt");
 figure('Color',[0.8 0.8 0.8]);
 plot(tradeHistory(:,1),tradeHistory(:,2),'-k.');
