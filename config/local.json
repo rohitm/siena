@@ -3,8 +3,8 @@
   "pollIntervalMinutes": 15,
   "cachePeriodInHours": 168,
   "bittrexMarket": "USDT-ETH",
-  "bittrexApiKey": "3718eb71386c4e8ca4bbe3b04e01cf9b",
-  "bittrexApiSecret": "d7018222fb4544e29e3c5308945f863f",
+  "bittrexApiKey": "***",
+  "bittrexApiSecret": "***",
   "bittrexCommission": 0.0025,
   "strategy": {
     "shortPeriod": 1800000,
@@ -26,7 +26,7 @@
     "selllimiturl": "https://bittrex.com/api/v1.1/market/selllimit"
   },
   "bittrexCache": {
-    "getmarkethistoryurl": "http://ec2-34-212-145-169.us-west-2.compute.amazonaws.com:3452/getmarkethistory",
-    "getcrossoverurl": "http://ec2-34-212-145-169.us-west-2.compute.amazonaws.com:3452/getCrossovers"
+    "getmarkethistoryurl": "http://localhost:3452/getmarkethistory",
+    "getcrossoverurl": "http://localhost:3452/getCrossovers"
   }
 }
