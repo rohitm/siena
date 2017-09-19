@@ -18,6 +18,7 @@ const redisClientMessageQueue = redis.createClient();
 redisClient.on('error', redisError => log.error(redisError));
 
 let marketTrend;
+let lastTrade;
 let lastTradeTime = 0;
 let lastBuyPrice = 0;
 const sienaAccount = new Account();
@@ -68,8 +69,8 @@ const rules = [{
       this.movingAverageShort <= this.movingAverageLong);
   },
   consequence: function consequence(R) {
-    this.fact = { trend: 'BEAR' };
-    this.actions = ['infer', 'compareMarketTrends'];
+    this.fact = { market: 'BEAR' };
+    this.actions = ['infer', 'sellSecurity'];
     R.stop();
   },
 }, {
@@ -77,7 +78,9 @@ const rules = [{
     R.when(_.has(this, 'crossover') &&
       _.has(this, 'currentTime') &&
       _.has(this, 'lastTradeTime') &&
+      _.has(this, 'lastTrade') &&
       this.crossover === 'UP' &&
+      this.lastTrade === 'SELL' &&
       (this.currentTime - this.lastTradeTime) >= config.get('strategy.shortPeriod'));
   },
   consequence: function consequence(R) {
@@ -89,17 +92,10 @@ const rules = [{
     R.when(_.has(this, 'crossover') &&
       _.has(this, 'currentAskPrice') &&
       _.has(this, 'lastBuyPrice') &&
+      _.has(this, 'lastTrade') &&
       this.crossover === 'DOWN' &&
+      this.lastTrade === 'BUY' &&
       this.currentAskPrice > this.lastBuyPrice);
-  },
-  consequence: function consequence(R) {
-    this.actions = ['sellSecurity'];
-    R.stop();
-  },
-}, {
-  condition: function condition(R) {
-    R.when(_.has(this, 'crossover') &&
-      this.crossover === 'BEAR');
   },
   consequence: function consequence(R) {
     this.actions = ['sellSecurity'];
@@ -113,6 +109,7 @@ const compareMarketTrends = async (trend) => {
     const fact = { crossover: trend,
       currentTime: new Date().getTime(),
       lastTradeTime,
+      lastTrade,
     };
 
     if (lastBuyPrice > 0) {
@@ -139,15 +136,16 @@ const updateBalance = async () => {
   return balances;
 };
 
-const updateLastTradeTime = async (expectedBalance, price = undefined) => {
+const updateLastTradeTime = async (expectedBalance, action, price = undefined) => {
   const account = new Account();
   const balance = account.setBittrexBalance(await updateBalance());
   log.info(`updateLastTradeTime: actual balance:${balance}, expected balance: ${expectedBalance}.`);
   if (balance.toFixed(3) === expectedBalance.toFixed(3)) {
     lastBuyPrice = price;
 
-    // Buy was successful
+    // trade was successful
     lastTradeTime = new Date().getTime();
+    lastTrade = action;
     log.info(`lastTradeTime: ${lastTradeTime}, lastBuyPrice: ${(lastBuyPrice || 'nevermind')}`);
   }
 };
@@ -164,6 +162,10 @@ const buySecurity = async () => {
 
   const [bittrexBalances, ticker] = await Promise.all(tasks);
   sienaAccount.setBittrexBalance(bittrexBalances);
+  if (sienaAccount.getBalanceNumber() < 1) {
+    log.warn(`buySecurity, account Balance : ${sienaAccount.getBalanceNumber()}. Not enough balance`);
+    return (false);
+  }
 
   const buyQuantity = sienaAccount.getTradeAmount() / ticker.Ask;
   const commission = tradeStub.getCommission(buyQuantity, ticker.Ask);
@@ -176,7 +178,8 @@ const buySecurity = async () => {
   const expectedBalance = sienaAccount.getBalanceNumber() - trade.total;
 
   // Assume that this order gets filled and then update the balance
-  setTimeout(() => { updateLastTradeTime(expectedBalance, ticker.Ask); }, 10000);
+  setTimeout(() => { updateLastTradeTime(expectedBalance, 'BUY', ticker.Ask); }, 10000);
+  return (true);
 };
 
 const sellSecurity = async () => {
@@ -197,10 +200,12 @@ const sellSecurity = async () => {
     const expectedBalance = sienaAccount.getBalanceNumber() + trade.total;
 
     // Assume that this order gets filled and then update the balance
-    setTimeout(() => { updateLastTradeTime(expectedBalance); }, 10000);
-  } else {
-    log.info('sellSecurity: No security to Sell');
+    setTimeout(() => { updateLastTradeTime(expectedBalance, 'SELL'); }, 10000);
+    return (true);
   }
+
+  log.warn('sellSecurity: No security to Sell');
+  return (false);
 };
 
 // initialize the rule engine
@@ -239,5 +244,14 @@ redisClient.on('message', (channel, message) => {
   }
 });
 
+
 redisClient.subscribe('facts');
-updateBalance();
+updateBalance().then((bittrexBalances) => {
+  const account = new Account();
+  if (account.setBittrexBalance(bittrexBalances) > 1) {
+    // Some crypto currency should have been sold to have this balance
+    lastTrade = 'SELL';
+  } else {
+    lastTrade = 'BUY';
+  }
+});

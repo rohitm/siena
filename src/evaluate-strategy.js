@@ -49,10 +49,11 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
 
     // Only buy if the trend is up, AND
     // you have some amount to trade, AND
-    // it has been atleast an hour since your last trade
+    // it has been atleast sometime since your last trade
     log.info(`trend:${crossoverPoint.trend}, market:${(crossoverPoint.market || 'nevermind')}, balance:${position.account.getBalanceNumber()}, timeSinceLastTrade: ${helper.millisecondsToHours(timeSinceLastTrade)}, lastBuyPrice: ${(position.lastBuyPrice || 'nevermind')}, bidPrice: ${crossoverPoint.bidPrice}, securityBalance: ${position.security}`);
     if (crossoverPoint.trend === 'UP'
       && crossoverPoint.market !== 'BEAR'
+      && position.lastTrade !== 'BUY'
       && position.account.getBalanceNumber() > 1
       && timeSinceLastTrade >= config.get('strategy.shortPeriod')) {
       log.info(`Time since last trade : ${helper.millisecondsToHours(timeSinceLastTrade)}`);
@@ -68,6 +69,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
       position.account.debit(trade.total);
       position.lastTradeTime = helper.cleanBittrexTimestamp(crossoverPoint.timestamp);
       position.lastBuyPrice = crossoverPoint.askPrice;
+      position.lastTrade = 'BUY';
       buySellPoints.push(`${helper.cleanBittrexTimestamp(crossoverPoint.timestamp)},${crossoverPoint.askPrice},1`);
     } else if (
       (
@@ -86,6 +88,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
       position.account.credit(trade.total);
       position.security = 0;
       position.lastTradeTime = helper.cleanBittrexTimestamp(crossoverPoint.timestamp);
+      position.lastTrade = 'SELL';
       buySellPoints.push(`${helper.cleanBittrexTimestamp(crossoverPoint.timestamp)},${crossoverPoint.bidPrice},0`);
     }
 
@@ -96,7 +99,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
     const trade = tradeStub.sell(strategyResult.security, ticker.Ask);
     strategyResult.account.credit(trade.total);
   }
-
+  log.info('Simulating strategy less buy and sale');
   // Buy it during the first value of the crossover
   const nonStrategyBuyTrade = tradeStub.buy(
     tradeAmount / crossoverData[0].askPrice,
