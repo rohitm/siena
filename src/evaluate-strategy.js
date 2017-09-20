@@ -55,7 +55,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
       && crossoverPoint.market !== 'BEAR'
       && position.lastTrade !== 'BUY'
       && position.account.getBalanceNumber() > 1
-      && timeSinceLastTrade >= config.get('strategy.shortPeriod')) {
+      ) {
       log.info(`Time since last trade : ${helper.millisecondsToHours(timeSinceLastTrade)}`);
       // Buy at ask price
       // Commission is in USDT
@@ -74,13 +74,13 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
     } else if (
       (
         (
-          crossoverPoint.trend === 'DOWN' &&
-          crossoverPoint.bidPrice > position.lastBuyPrice
+          crossoverPoint.bidPrice > (position.lastBuyPrice + (0.2 * position.lastBuyPrice))
         ) ||
         (
-          crossoverPoint.trend === 'BEAR'
+          crossoverPoint.market === 'BEAR'
         )
-      ) && position.security > 0) {
+      ) && position.security > 0
+        && position.lastTrade !== 'SELL') {
       // Sell at the bid price
       // Commission is in USDT
       const quantity = position.security;
