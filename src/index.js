@@ -17,7 +17,7 @@ const redisClient = redis.createClient();
 const redisClientMessageQueue = redis.createClient();
 redisClient.on('error', redisError => log.error(redisError));
 
-let marketTrend;
+let crossover;
 let lastTrade;
 let lastTradeTime = 0;
 let lastBuyPrice = 0;
@@ -44,85 +44,97 @@ const rules = [{
   condition: function condition(R) {
     R.when(_.has(this, 'movingAverageShort') &&
       _.has(this, 'movingAverageMid') &&
-      this.movingAverageShort > this.movingAverageMid);
+      _.has(this, 'movingAverageLong'));
   },
   consequence: function consequence(R) {
-    this.fact = { trend: 'UP' };
-    this.actions = ['infer', 'compareMarketTrends'];
+    this.actions = ['getMarketTrend'];
     R.stop();
   },
 }, {
   condition: function condition(R) {
-    R.when(_.has(this, 'movingAverageShort') &&
-      _.has(this, 'movingAverageMid') &&
-      this.movingAverageShort <= this.movingAverageMid);
-  },
-  consequence: function consequence(R) {
-    this.fact = { trend: 'DOWN' };
-    this.actions = ['infer', 'compareMarketTrends'];
-    R.stop();
-  },
-}, {
-  condition: function condition(R) {
-    R.when(_.has(this, 'movingAverageShort') &&
-      _.has(this, 'movingAverageLong') &&
-      this.movingAverageShort <= this.movingAverageLong);
-  },
-  consequence: function consequence(R) {
-    this.fact = { market: 'BEAR' };
-    this.actions = ['infer', 'sellSecurity'];
-    R.stop();
-  },
-}, {
-  condition: function condition(R) {
-    R.when(_.has(this, 'crossover') &&
-      _.has(this, 'currentTime') &&
-      _.has(this, 'lastTradeTime') &&
+    R.when(_.has(this, 'event') &&
+      _.has(this, 'trend') &&
+      _.has(this, 'market') &&
       _.has(this, 'lastTrade') &&
-      this.crossover === 'UP' &&
-      this.lastTrade === 'SELL' &&
-      (this.currentTime - this.lastTradeTime) >= config.get('strategy.shortPeriod'));
+      this.event === 'crossover' &&
+      this.trend === 'DOWN' &&
+      this.lastTrade !== 'BUY' &&
+      this.market === 'BULL-OR-FLAT');
   },
   consequence: function consequence(R) {
+    // Buy security on the cheap as long as it isn't a bear market.
     this.actions = ['buySecurity'];
     R.stop();
   },
 }, {
   condition: function condition(R) {
-    R.when(_.has(this, 'crossover') &&
-      _.has(this, 'currentAskPrice') &&
-      _.has(this, 'lastBuyPrice') &&
+    R.when(_.has(this, 'event') &&
       _.has(this, 'lastTrade') &&
-      this.crossover === 'DOWN' &&
-      this.lastTrade === 'BUY' &&
-      this.currentAskPrice > this.lastBuyPrice);
+      _.has(this, 'market') &&
+      _.has(this, 'lastBuyPrice') &&
+      _.has(this, 'currentBidPrice') &&
+      this.event === 'crossover' &&
+      this.currentBidPrice > (this.lastBuyPrice + (0.2 * this.lastBuyPrice)) &&
+      this.lastTrade !== 'SELL' &&
+      this.market === 'BULL-OR-FLAT');
   },
   consequence: function consequence(R) {
+    // You've got a profit so cash in!
+    this.actions = ['sellSecurity'];
+    R.stop();
+  },
+}, {
+  condition: function condition(R) {
+    R.when(_.has(this, 'event') &&
+      _.has(this, 'lastTrade') &&
+      _.has(this, 'market') &&
+      this.event === 'crossover' &&
+      this.lastTrade === 'BUY' &&
+      this.market === 'BEAR');
+  },
+  consequence: function consequence(R) {
+    // This is a bear market, sell and wait for better buying opportunity.
     this.actions = ['sellSecurity'];
     R.stop();
   },
 }];
 
-const compareMarketTrends = async (trend) => {
-  // Update the market trend, UP or DOWN
-  if (marketTrend !== undefined && marketTrend !== trend) {
-    const fact = { crossover: trend,
-      currentTime: new Date().getTime(),
-      lastTradeTime,
-      lastTrade,
-    };
-
-    if (lastBuyPrice > 0) {
-      fact.lastBuyPrice = lastBuyPrice;
-      const ticker = await getTicker(config.get('bittrexMarket'));
-      fact.currentAskPrice = ticker.Ask;
-    }
-
-    redisClientMessageQueue.publish('facts', JSON.stringify(fact));
+const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverageLong) => {
+  const currentMarket = {};
+  if (movingAverageShort > movingAverageMid) {
+    currentMarket.trend = 'UP';
+  } else {
+    currentMarket.trend = 'DOWN';
   }
 
-  log.info(`updateMarketTrend : ${trend}, ${(marketTrend || 'nevermind')}`);
-  marketTrend = trend;
+  if (movingAverageShort <= movingAverageLong) {
+    currentMarket.market = 'BEAR';
+  } else {
+    currentMarket.market = 'BULL-OR-FLAT';
+  }
+
+  if (_.isEqual(crossover, currentMarket)) {
+    // The market has not crossedOver based on the last value
+    return false;
+  }
+
+  // Market has crossedOver
+  crossover = currentMarket;
+  const fact = _.cloneDeep(crossover);
+  fact.event = 'crossover';
+  fact.crossoverTime = new Date().getTime();
+  fact.lastTradeTime = lastTradeTime;
+  fact.lastTrade = lastTrade;
+  if (lastBuyPrice > 0) {
+    fact.lastBuyPrice = lastBuyPrice;
+    const ticker = await getTicker(config.get('bittrexMarket'));
+    fact.currentBidPrice = ticker.Bid;
+  }
+
+  log.info(`getMarketTrend, trend : ${getMarketTrend.trend}, market: ${(currentMarket.market || 'nevermind')}, crossoverTime: ${fact.crossoverTime}`);
+
+  redisClientMessageQueue.publish('facts', JSON.stringify(fact));
+  return currentMarket;
 };
 
 const compartmentaliseAccount = (bittrexAccountBalances) => {
@@ -223,8 +235,9 @@ redisClient.on('message', (channel, message) => {
         redisClientMessageQueue.publish('facts', JSON.stringify(result.fact));
       }
 
-      if (_.includes(result.actions, 'compareMarketTrends') && _.has(result, 'fact.trend')) {
-        compareMarketTrends(result.fact.trend);
+      if (_.includes(result.actions, 'getMarketTrend') && _.has(result, 'fact.trend')) {
+        getMarketTrend(result.movingAverageShort,
+          result.movingAverageMid, result.movingAverageLong);
       }
 
       if (_.includes(result.actions, 'compartmentaliseAccount') && _.has(result, 'bittrexAccountBalances')) {
