@@ -51,11 +51,10 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
     // you have some amount to trade, AND
     // it has been atleast sometime since your last trade
     log.info(`trend:${crossoverPoint.trend}, market:${(crossoverPoint.market || 'nevermind')}, balance:${position.account.getBalanceNumber()}, timeSinceLastTrade: ${helper.millisecondsToHours(timeSinceLastTrade)}, lastBuyPrice: ${(position.lastBuyPrice || 'nevermind')}, bidPrice: ${crossoverPoint.bidPrice}, securityBalance: ${position.security}`);
-    if (crossoverPoint.trend === 'UP'
+    if (crossoverPoint.trend === 'DOWN'
       && crossoverPoint.market !== 'BEAR'
       && position.lastTrade !== 'BUY'
-      && position.account.getBalanceNumber() > 1
-      ) {
+      && position.account.getBalanceNumber() > 1) {
       log.info(`Time since last trade : ${helper.millisecondsToHours(timeSinceLastTrade)}`);
       // Buy at ask price
       // Commission is in USDT
