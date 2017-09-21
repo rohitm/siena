@@ -112,8 +112,10 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
   } else {
     currentMarket.market = 'BULL-OR-FLAT';
   }
+  log.info(`getMarketTrend, trend : ${currentMarket.trend}, market: ${(currentMarket.market || 'nevermind')}`);
 
-  if (_.isEqual(crossover, currentMarket)) {
+
+  if (_.isEqual(crossover, currentMarket) || crossover === undefined) {
     // The market has not crossedOver based on the last value
     return false;
   }
@@ -130,8 +132,7 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
     const ticker = await getTicker(config.get('bittrexMarket'));
     fact.currentBidPrice = ticker.Bid;
   }
-
-  log.info(`getMarketTrend, trend : ${getMarketTrend.trend}, market: ${(currentMarket.market || 'nevermind')}, crossoverTime: ${fact.crossoverTime}`);
+  log.info(`getMarketTrend, crossoverTime: ${fact.crossoverTime}`);
 
   redisClientMessageQueue.publish('facts', JSON.stringify(fact));
   return currentMarket;
@@ -235,7 +236,10 @@ redisClient.on('message', (channel, message) => {
         redisClientMessageQueue.publish('facts', JSON.stringify(result.fact));
       }
 
-      if (_.includes(result.actions, 'getMarketTrend') && _.has(result, 'fact.trend')) {
+      if (_.includes(result.actions, 'getMarketTrend')
+          && _.has(result, 'movingAverageShort')
+          && _.has(result, 'movingAverageMid')
+          && _.has(result, 'movingAverageLong')) {
         getMarketTrend(result.movingAverageShort,
           result.movingAverageMid, result.movingAverageLong);
       }
