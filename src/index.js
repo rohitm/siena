@@ -114,8 +114,11 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
   }
   log.info(`getMarketTrend, trend : ${currentMarket.trend}, market: ${(currentMarket.market || 'nevermind')}`);
 
+  if (crossover === undefined) {
+    crossover = currentMarket;
+  }
 
-  if (_.isEqual(crossover, currentMarket) || crossover === undefined) {
+  if (_.isEqual(crossover, currentMarket)) {
     // The market has not crossedOver based on the last value
     return false;
   }
