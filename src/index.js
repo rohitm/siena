@@ -140,7 +140,7 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
     ];
 
     const [range, ticker] = await Promise.all(tasks);
-    fact.rangePercentage = range / lastBuyPrice;
+    fact.rangePercentage = range / ticker.Bid;
     fact.currentBidPrice = ticker.Bid;
   }
   log.info(`getMarketTrend, crossoverTime: ${fact.crossoverTime}`);
