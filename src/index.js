@@ -6,6 +6,7 @@ const redis = require('redis');
 const getBalances = require('./lib/get-balances');
 const Account = require('./lib/account');
 const getTicker = require('./lib/get-ticker');
+const getRange = require('./lib/get-range');
 const buyLimit = require('./lib/buy-limit');
 const sellLimit = require('./lib/sell-limit');
 const tradeStub = require('./lib/trade-stub');
@@ -73,8 +74,9 @@ const rules = [{
       _.has(this, 'market') &&
       _.has(this, 'lastBuyPrice') &&
       _.has(this, 'currentBidPrice') &&
+      _.has(this, 'rangePercentage') &&
       this.event === 'crossover' &&
-      this.currentBidPrice > (this.lastBuyPrice + (0.2 * this.lastBuyPrice)) &&
+      this.currentBidPrice > (this.lastBuyPrice + (this.rangePercentage * this.lastBuyPrice)) &&
       this.lastTrade !== 'SELL' &&
       this.market === 'BULL-OR-FLAT');
   },
@@ -132,7 +134,13 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
   fact.lastTrade = lastTrade;
   if (lastBuyPrice > 0) {
     fact.lastBuyPrice = lastBuyPrice;
-    const ticker = await getTicker(config.get('bittrexMarket'));
+    const tasks = [
+      getRange(config.get('bittrexMarket')),
+      getTicker(config.get('bittrexMarket')),
+    ];
+
+    const [range, ticker] = await Promise.all(tasks);
+    fact.rangePercentage = range / lastBuyPrice;
     fact.currentBidPrice = ticker.Bid;
   }
   log.info(`getMarketTrend, crossoverTime: ${fact.crossoverTime}`);
