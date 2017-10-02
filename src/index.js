@@ -222,7 +222,7 @@ const buySecurity = async () => {
   const expectedBalance = sienaAccount.getBalanceNumber() - trade.total;
 
   // Assume that this order gets filled and then update the balance
-  setTimeout(() => { updateLastTradeTime(expectedBalance, 'BUY', ticker.Ask); }, 60000);
+  setTimeout(() => { updateLastTradeTime(expectedBalance, 'BUY', ticker.Ask); }, 30000);
   return (true);
 };
 
@@ -244,7 +244,7 @@ const sellSecurity = async () => {
     const expectedBalance = sienaAccount.getBalanceNumber() + trade.total;
 
     // Assume that this order gets filled and then update the balance
-    setTimeout(() => { updateLastTradeTime(expectedBalance, 'SELL'); }, 10000);
+    setTimeout(() => { updateLastTradeTime(expectedBalance, 'SELL'); }, 30000);
     return (true);
   }
 
