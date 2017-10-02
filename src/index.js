@@ -11,6 +11,7 @@ const buyLimit = require('./lib/buy-limit');
 const sellLimit = require('./lib/sell-limit');
 const tradeStub = require('./lib/trade-stub');
 const helper = require('./helper');
+const poll = require('./poll');
 
 const log = logger({ level: logger.INFO });
 
@@ -132,20 +133,37 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
   fact.crossoverTime = new Date().getTime();
   fact.lastTradeTime = lastTradeTime;
   fact.lastTrade = lastTrade;
+
+  const tasks = [
+    getRange(config.get('bittrexMarket')),
+    getTicker(config.get('bittrexMarket')),
+  ];
+
+  const [range, ticker] = await Promise.all(tasks);
+
   if (lastBuyPrice > 0) {
     fact.lastBuyPrice = lastBuyPrice;
-    const tasks = [
-      getRange(config.get('bittrexMarket')),
-      getTicker(config.get('bittrexMarket')),
-    ];
-
-    const [range, ticker] = await Promise.all(tasks);
     fact.rangePercentage = range / ticker.Bid;
     fact.currentBidPrice = ticker.Bid;
   }
   log.info(`getMarketTrend, crossoverTime: ${fact.crossoverTime}`);
 
   redisClientMessageQueue.publish('facts', JSON.stringify(fact));
+
+  // Cache crossover for strategy analysis
+  // Cache recommendation
+  const crossoverCacheData = {
+    movingAverageShort,
+    movingAverageMid,
+    movingAverageLong,
+    trend: currentMarket.trend,
+    market: currentMarket.market,
+    bidPrice: ticker.Bid,
+    askPrice: ticker.Ask,
+    timestamp: new Date(),
+  };
+
+  redisClient.zadd([`${config.get('bittrexMarket')}-crossovers`, new Date().getTime(), `${JSON.stringify(crossoverCacheData)}`]);
   return currentMarket;
 };
 
@@ -170,7 +188,9 @@ const updateLastTradeTime = async (expectedBalance, action, price = undefined) =
     // trade was successful
     lastTradeTime = new Date().getTime();
     lastTrade = action;
-    log.info(`lastTradeTime: ${lastTradeTime}, lastBuyPrice: ${(lastBuyPrice || 'nevermind')}`);
+    log.info(`updateLastTradeTime: lastTradeTime: ${lastTradeTime}, lastBuyPrice: ${(lastBuyPrice || 'nevermind')}`);
+  } else {
+    log.warn('updateLastTradeTime: lastTrade unsuccessful');
   }
 };
 
@@ -202,7 +222,7 @@ const buySecurity = async () => {
   const expectedBalance = sienaAccount.getBalanceNumber() - trade.total;
 
   // Assume that this order gets filled and then update the balance
-  setTimeout(() => { updateLastTradeTime(expectedBalance, 'BUY', ticker.Ask); }, 10000);
+  setTimeout(() => { updateLastTradeTime(expectedBalance, 'BUY', ticker.Ask); }, 60000);
   return (true);
 };
 
@@ -272,8 +292,13 @@ redisClient.on('message', (channel, message) => {
   }
 });
 
+// Keep polling the moving averages
+setInterval(() => poll(config.get('bittrexMarket')), 5000);
 
+// Listen for facts
 redisClient.subscribe('facts');
+
+// Update the current balance
 updateBalance().then((bittrexBalances) => {
   const account = new Account();
   if (account.setBittrexBalance(bittrexBalances) > 1) {
