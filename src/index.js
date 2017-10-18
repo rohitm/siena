@@ -16,6 +16,7 @@ const poll = require('./poll');
 const log = logger({ level: logger.INFO });
 
 const redisClient = redis.createClient();
+const redisClientForCacheOperations = redis.createClient();
 const redisClientMessageQueue = redis.createClient();
 redisClient.on('error', redisError => log.error(redisError));
 
@@ -163,7 +164,7 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
     timestamp: new Date(),
   };
 
-  redisClient.zadd([`${config.get('bittrexMarket')}-crossovers`, new Date().getTime(), `${JSON.stringify(crossoverCacheData)}`]);
+  redisClientForCacheOperations.zadd([`${config.get('bittrexMarket')}-crossovers`, new Date().getTime(), `${JSON.stringify(crossoverCacheData)}`]);
   return currentMarket;
 };
 
