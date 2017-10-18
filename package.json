@@ -22,6 +22,7 @@
   },
   "scripts": {
     "lint": "./node_modules/.bin/eslint ./src/",
+    "siena": "./node_modules/.bin/forever start src/index.js",
     "forever-start-cache": "./node_modules/.bin/forever start src/market-history-cache.js",
     "forever-list": "./node_modules/.bin/forever list",
     "get-nav": "node src/nav.js"
