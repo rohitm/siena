@@ -1,5 +1,4 @@
 const movingAverage = require('./lib/moving-average');
-const getTicker = require('./lib/get-ticker');
 const logger = require('cli-logger');
 const redis = require('redis');
 const config = require('config');
@@ -23,7 +22,6 @@ const poll = market => new Promise(async (resolvePoll, rejectPoll) => {
     const fromTimestampLong = toTimestamp - longPeriod;
 
     const tasks = [
-      getTicker(market),
       movingAverage(market, fromTimestampShort, toTimestamp),
       movingAverage(market, fromTimestampMid, toTimestamp, 'bittrexCache'),
       movingAverage(market, fromTimestampLong, toTimestamp, 'bittrexCache'),
