@@ -2,6 +2,7 @@
   "cacheServerPort": 3452,
   "pollIntervalMinutes": 15,
   "cachePeriodInHours": 168,
+  "balancePollInterval": 60000,
   "bittrexMarket": "USDT-ETH",
   "bittrexApiKey": "***",
   "bittrexApiSecret": "***",
