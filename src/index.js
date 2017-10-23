@@ -111,11 +111,22 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
     currentMarket.trend = 'DOWN';
   }
 
-  if (movingAverageShort <= movingAverageLong) {
+  if (movingAverageShort >= movingAverageMid && movingAverageMid >= movingAverageLong) {
+    currentMarket.market = 'BULL';
+  } else if (movingAverageLong >= movingAverageMid && movingAverageMid >= movingAverageShort) {
     currentMarket.market = 'BEAR';
+  } else if (movingAverageMid >= movingAverageShort && movingAverageShort >= movingAverageLong) {
+    currentMarket.market = 'VOLATILE-MID';
+  } else if (movingAverageLong >= movingAverageShort && movingAverageShort >= movingAverageMid) {
+    currentMarket.market = 'VOLATILE-RECOVERY';
+  } else if (movingAverageMid >= movingAverageLong && movingAverageLong >= movingAverageShort) {
+    currentMarket.market = 'VOLATILE-LOW';
+  } else if (movingAverageShort >= movingAverageLong && movingAverageLong >= movingAverageMid) {
+    currentMarket.market = 'VOLATILE';
   } else {
-    currentMarket.market = 'BULL-OR-FLAT';
+    currentMarket.market = 'FLAT';
   }
+
   log.info(`getMarketTrend, trend : ${currentMarket.trend}, market: ${(currentMarket.market || 'nevermind')}`);
 
   if (crossover === undefined) {
