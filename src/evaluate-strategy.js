@@ -37,6 +37,10 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
   ];
 
   const [ticker, crossoverData] = await Promise.all(tasks);
+  if (crossoverData.length === 0) {
+    log.error(`No crossover data from ${config.get('bittrexCache.getcrossoverurl')}`);
+    process.exit();
+  }
 
   let tradeAmount = 100; // How much currency you have to trade
   const account = new Account(config.get('sienaAccount.baseCurrency'), tradeAmount);
@@ -74,7 +78,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
     } else if (
       (
         (
-          crossoverPoint.bidPrice > (position.lastBuyPrice + (0.1 * position.lastBuyPrice))
+          crossoverPoint.bidPrice > (position.lastBuyPrice + (0.2 * position.lastBuyPrice))
         ) ||
         (
           crossoverPoint.market === 'BEAR'
