@@ -251,7 +251,7 @@ const buySecurity = async () => {
 
 const sellSecurity = async () => {
   if (config.get('trade') === false) {
-    log.info('buySecurity, trade: false. Skipping security trades');
+    log.info('sellSecurity, trade: false. Skipping security trades');
     return (false);
   }
 
