@@ -222,7 +222,7 @@ const buySecurity = async () => {
   const commission = tradeStub.getCommission(buyQuantity, ticker.Ask);
   const buyLesserQuantity = (sienaAccount.getTradeAmount() - commission) / ticker.Ask;
 
-  log.info(`buySecurity: Buy ${buyLesserQuantity}${config.get('sienaAccount.securityCurrency')} for ${ticker.Ask}`);
+  log.info(`buySecurity: Buy ${buyLesserQuantity}${config.get('sienaAccount.securityCurrency')} for ${ticker.Ask} on ${new Date()}`);
   const order = await buyLimit(config.get('bittrexMarket'), buyLesserQuantity, ticker.Ask);
   log.info(`buySecurity, buyOrderUuid: ${order.uuid}`);
   const trade = tradeStub.buy(buyLesserQuantity, ticker.Ask);
