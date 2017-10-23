@@ -202,6 +202,11 @@ const updateLastTradeTime = async (expectedBalance, action, price = undefined) =
 };
 
 const buySecurity = async () => {
+  if (config.get('trade') === false) {
+    log.info('buySecurity, trade: false. Skipping security trades');
+    return (false);
+  }
+
   const tasks = [
     getBalances(),
     getTicker(config.get('bittrexMarket')),
@@ -234,6 +239,11 @@ const buySecurity = async () => {
 };
 
 const sellSecurity = async () => {
+  if (config.get('trade') === false) {
+    log.info('buySecurity, trade: false. Skipping security trades');
+    return (false);
+  }
+
   const tasks = [
     getBalances(),
     getTicker(config.get('bittrexMarket')),
