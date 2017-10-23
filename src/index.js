@@ -191,7 +191,13 @@ const updateLastTradeTime = async (expectedBalance, action, price = undefined) =
     lastTrade = action;
     log.info(`updateLastTradeTime: lastTradeTime: ${lastTradeTime}, lastBuyPrice: ${(lastBuyPrice || 'nevermind')}`);
   } else {
-    log.warn('updateLastTradeTime: lastTrade unsuccessful');
+    log.error('updateLastTradeTime, Error: lastTrade unsuccessful');
+
+    // Why didn't bittrex fill the last order even after `balancePollInterval` seconds ?
+    // Terminate Siena for now, investiage if your order was filled on bittrex and restart Siena
+
+    // TODO : Maybe notify yourself that Siena has terminated due to an unfilled order
+    process.exit();
   }
 };
 
@@ -223,7 +229,7 @@ const buySecurity = async () => {
   const expectedBalance = sienaAccount.getBalanceNumber() - trade.total;
 
   // Assume that this order gets filled and then update the balance
-  setTimeout(() => { updateLastTradeTime(expectedBalance, 'BUY', ticker.Ask); }, 30000);
+  setTimeout(() => { updateLastTradeTime(expectedBalance, 'BUY', ticker.Ask); }, config.get('balancePollInterval'));
   return (true);
 };
 
@@ -245,7 +251,7 @@ const sellSecurity = async () => {
     const expectedBalance = sienaAccount.getBalanceNumber() + trade.total;
 
     // Assume that this order gets filled and then update the balance
-    setTimeout(() => { updateLastTradeTime(expectedBalance, 'SELL'); }, 30000);
+    setTimeout(() => { updateLastTradeTime(expectedBalance, 'SELL'); }, config.get('balancePollInterval'));
     return (true);
   }
 
