@@ -50,7 +50,8 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
     // Only buy if the trend is up, AND
     // you have some amount to trade, AND
     // it has been atleast sometime since your last trade
-    log.info(`trend:${crossoverPoint.trend}, market:${(crossoverPoint.market || 'nevermind')}, balance:${position.account.getBalanceNumber()}, timeSinceLastTrade: ${helper.millisecondsToHours(timeSinceLastTrade)}, lastBuyPrice: ${(position.lastBuyPrice || 'nevermind')}, bidPrice: ${crossoverPoint.bidPrice}, securityBalance: ${position.security}`);
+
+    log.info(`trend:${crossoverPoint.trend}, crossoverTime: ${crossoverPoint.timestamp}, market:${(crossoverPoint.market || 'nevermind')}, balance:${position.account.getBalanceNumber()}, timeSinceLastTrade: ${helper.millisecondsToHours(timeSinceLastTrade)}, lastBuyPrice: ${(position.lastBuyPrice || 'nevermind')}, bidPrice: ${crossoverPoint.bidPrice}, securityBalance: ${position.security}`);
     if (crossoverPoint.trend === 'DOWN'
       && crossoverPoint.market !== 'BEAR'
       && position.lastTrade !== 'BUY'
@@ -73,7 +74,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
     } else if (
       (
         (
-          crossoverPoint.bidPrice > (position.lastBuyPrice + (0.2 * position.lastBuyPrice))
+          crossoverPoint.bidPrice > (position.lastBuyPrice + (0.1 * position.lastBuyPrice))
         ) ||
         (
           crossoverPoint.market === 'BEAR'
