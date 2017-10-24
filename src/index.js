@@ -183,7 +183,7 @@ const updateLastTradeTime = async (expectedBalance, action, price = undefined) =
   const account = new Account();
   const balance = account.setBittrexBalance(await updateBalance());
   log.info(`updateLastTradeTime: actual balance:${balance}, expected balance: ${expectedBalance}.`);
-  if (balance.toFixed(3) === expectedBalance.toFixed(3)) {
+  if (balance.toFixed(2) === expectedBalance.toFixed(2)) {
     lastBuyPrice = price;
 
     // trade was successful
@@ -212,8 +212,8 @@ const buySecurity = async () => {
     getTicker(config.get('bittrexMarket')),
   ];
   const timeSinceLastTrade = new Date().getTime() - lastTradeTime;
-  if (timeSinceLastTrade < config.get('strategy.shortPeriod')) {
-    log.info(`buySecurity, timeSinceLastTrade: ${helper.millisecondsToHours(timeSinceLastTrade)}. Passing buy signal.`);
+  if (timeSinceLastTrade < config.get('strategy.balancePollInterval')) {
+    log.warn(`buySecurity, timeSinceLastTrade: ${helper.millisecondsToHours(timeSinceLastTrade)}. Should maybe passing this buy signal?`);
   }
 
   const [bittrexBalances, ticker] = await Promise.all(tasks);
