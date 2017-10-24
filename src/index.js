@@ -324,4 +324,6 @@ updateBalance().then((bittrexBalances) => {
   } else {
     lastTrade = 'BUY';
   }
+
+  // TODO : Cancel all open orders when the script starts
 });
