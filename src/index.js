@@ -212,7 +212,7 @@ const buySecurity = async () => {
     getTicker(config.get('bittrexMarket')),
   ];
   const timeSinceLastTrade = new Date().getTime() - lastTradeTime;
-  if (timeSinceLastTrade < config.get('strategy.balancePollInterval')) {
+  if (timeSinceLastTrade < config.get('balancePollInterval')) {
     log.warn(`buySecurity, timeSinceLastTrade: ${helper.millisecondsToHours(timeSinceLastTrade)}. Should maybe passing this buy signal?`);
   }
 
