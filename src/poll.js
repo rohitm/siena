@@ -12,7 +12,7 @@ const longPeriod = config.get('strategy.longPeriod');
 const redisClient = redis.createClient();
 redisClient.on('error', redisError => log.error(redisError));
 
-const poll = market => new Promise(async (resolvePoll, rejectPoll) => {
+const poll = market => new Promise(async (resolvePoll) => {
   try {
     // Get the short moving average from bittrex
     // & longer moving average from the cache or bittrex
@@ -38,7 +38,7 @@ const poll = market => new Promise(async (resolvePoll, rejectPoll) => {
     resolvePoll({ movingAverageLong, movingAverageMid, movingAverageShort });
   } catch (pollError) {
     log.error(`poll, error: ${pollError}`);
-    rejectPoll(pollError);
+    resolvePoll(null);
   }
 });
 
