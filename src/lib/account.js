@@ -38,7 +38,7 @@ class Account {
       return new Error(`${config.get('sienaAccount.baseCurrency')} balance not found on bittrex`);
     }
 
-    this.setBalance(account[0].Balance);
+    this.setBalance(account[0].Available);
     return (this.getBittrexBalance(this.baseCurrency));
   }
 
@@ -50,7 +50,7 @@ class Account {
       return new Error(`${securityCurrency} balance not found on bittrex`);
     }
 
-    return (account[0].Balance);
+    return (account[0].Available);
   }
 
   getBalance() {

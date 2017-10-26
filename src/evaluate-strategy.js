@@ -56,8 +56,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
     // it has been atleast sometime since your last trade
 
     log.info(`trend:${crossoverPoint.trend}, crossoverTime: ${crossoverPoint.timestamp}, market:${(crossoverPoint.market || 'nevermind')}, balance:${position.account.getBalanceNumber()}, timeSinceLastTrade: ${helper.millisecondsToHours(timeSinceLastTrade)}, lastBuyPrice: ${(position.lastBuyPrice || 'nevermind')}, bidPrice: ${crossoverPoint.bidPrice}, securityBalance: ${position.security}`);
-    if (crossoverPoint.trend === 'DOWN'
-      && crossoverPoint.market !== 'BEAR'
+    if (crossoverPoint.market === 'VOLATILE-LOW'
       && position.lastTrade !== 'BUY'
       && position.account.getBalanceNumber() > 1) {
       log.info(`Time since last trade : ${helper.millisecondsToHours(timeSinceLastTrade)}`);
@@ -78,10 +77,15 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
     } else if (
       (
         (
-          crossoverPoint.bidPrice > (position.lastBuyPrice + (0.2 * position.lastBuyPrice))
+          // Dont sell in a bull market
+          crossoverPoint.market !== 'BULL' &&
+          // Make sure the sell price is some percentage higher than the buy price
+          crossoverPoint.bidPrice > (position.lastBuyPrice + (0.04 * position.lastBuyPrice))
         ) ||
         (
-          crossoverPoint.market === 'BEAR'
+          // Market has turned bear, cut your loss short
+          crossoverPoint.market === 'BEAR' &&
+          crossoverPoint.bidPrice < (position.lastBuyPrice - (0.04 * position.lastBuyPrice))
         )
       ) && position.security > 0
         && position.lastTrade !== 'SELL') {

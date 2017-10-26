@@ -56,13 +56,11 @@ const rules = [{
 }, {
   condition: function condition(R) {
     R.when(_.has(this, 'event') &&
-      _.has(this, 'trend') &&
       _.has(this, 'market') &&
       _.has(this, 'lastTrade') &&
       this.event === 'crossover' &&
-      this.trend === 'DOWN' &&
-      this.lastTrade !== 'BUY' &&
-      this.market === 'BULL-OR-FLAT');
+      this.market === 'VOLATILE-LOW' &&
+      this.lastTrade !== 'BUY');
   },
   consequence: function consequence(R) {
     // Buy security on the cheap as long as it isn't a bear market.
@@ -80,7 +78,7 @@ const rules = [{
       this.event === 'crossover' &&
       this.currentBidPrice > (this.lastBuyPrice + (this.rangePercentage * this.lastBuyPrice)) &&
       this.lastTrade !== 'SELL' &&
-      this.market === 'BULL-OR-FLAT');
+      this.market !== 'BULL');
   },
   consequence: function consequence(R) {
     // You've got a profit so cash in!
@@ -92,7 +90,11 @@ const rules = [{
     R.when(_.has(this, 'event') &&
       _.has(this, 'lastTrade') &&
       _.has(this, 'market') &&
+      _.has(this, 'lastBuyPrice') &&
+      _.has(this, 'currentBidPrice') &&
+      _.has(this, 'rangePercentage') &&
       this.event === 'crossover' &&
+      this.currentBidPrice < (this.lastBuyPrice - (this.rangePercentage * this.lastBuyPrice)) &&
       this.lastTrade === 'BUY' &&
       this.market === 'BEAR');
   },
@@ -194,7 +196,7 @@ const updateLastTradeTime = async (expectedBalance, action, price = undefined) =
   const account = new Account();
   const balance = account.setBittrexBalance(await updateBalance());
   log.info(`updateLastTradeTime: actual balance:${balance}, expected balance: ${expectedBalance}.`);
-  if (balance.toFixed(3) === expectedBalance.toFixed(3)) {
+  if (balance.toFixed(2) === expectedBalance.toFixed(2)) {
     lastBuyPrice = price;
 
     // trade was successful
@@ -223,8 +225,8 @@ const buySecurity = async () => {
     getTicker(config.get('bittrexMarket')),
   ];
   const timeSinceLastTrade = new Date().getTime() - lastTradeTime;
-  if (timeSinceLastTrade < config.get('strategy.shortPeriod')) {
-    log.info(`buySecurity, timeSinceLastTrade: ${helper.millisecondsToHours(timeSinceLastTrade)}. Passing buy signal.`);
+  if (timeSinceLastTrade < config.get('balancePollInterval')) {
+    log.warn(`buySecurity, timeSinceLastTrade: ${helper.millisecondsToHours(timeSinceLastTrade)}. Should maybe passing this buy signal?`);
   }
 
   const [bittrexBalances, ticker] = await Promise.all(tasks);
@@ -335,4 +337,6 @@ updateBalance().then((bittrexBalances) => {
   } else {
     lastTrade = 'BUY';
   }
+
+  // TODO : Cancel all open orders when the script starts
 });
