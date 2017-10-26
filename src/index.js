@@ -56,13 +56,11 @@ const rules = [{
 }, {
   condition: function condition(R) {
     R.when(_.has(this, 'event') &&
-      _.has(this, 'trend') &&
       _.has(this, 'market') &&
       _.has(this, 'lastTrade') &&
       this.event === 'crossover' &&
-      this.trend === 'DOWN' &&
-      this.lastTrade !== 'BUY' &&
-      this.market === 'BULL-OR-FLAT');
+      this.market === 'VOLATILE-LOW' &&
+      this.lastTrade !== 'BUY');
   },
   consequence: function consequence(R) {
     // Buy security on the cheap as long as it isn't a bear market.
@@ -80,7 +78,7 @@ const rules = [{
       this.event === 'crossover' &&
       this.currentBidPrice > (this.lastBuyPrice + (this.rangePercentage * this.lastBuyPrice)) &&
       this.lastTrade !== 'SELL' &&
-      this.market === 'BULL-OR-FLAT');
+      this.market !== 'BULL');
   },
   consequence: function consequence(R) {
     // You've got a profit so cash in!
