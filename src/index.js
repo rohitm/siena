@@ -232,7 +232,7 @@ const buySecurity = async () => {
   const [bittrexBalances, ticker] = await Promise.all(tasks);
   sienaAccount.setBittrexBalance(bittrexBalances);
   if (sienaAccount.getBalanceNumber() < 1) {
-    log.warn(`buySecurity, account Balance : ${sienaAccount.getBalanceNumber()}. Not enough balance`);
+    log.error(`buySecurity Error, account Balance : ${sienaAccount.getBalanceNumber()}. Not enough balance`);
     return (false);
   }
 
@@ -278,7 +278,7 @@ const sellSecurity = async () => {
     return (true);
   }
 
-  log.warn('sellSecurity: No security to Sell');
+  log.error('sellSecurity Error: No security to Sell');
   return (false);
 };
 
@@ -329,13 +329,20 @@ setInterval(() => poll(config.get('bittrexMarket')), 5000);
 redisClient.subscribe('facts');
 
 // Update the current balance
-updateBalance().then((bittrexBalances) => {
+updateBalance().then(async (bittrexBalances) => {
   const account = new Account();
   if (account.setBittrexBalance(bittrexBalances) > 1) {
     // Some crypto currency should have been sold to have this balance
     lastTrade = 'SELL';
   } else {
     lastTrade = 'BUY';
+
+    // We don't know the last price that you bought the security in your account for
+    if (!Number.isNaN(parseFloat(process.argv[2]))) {
+      lastBuyPrice = process.argv[2]; // Get the price that was passed as a command line argument
+    } else {
+      lastBuyPrice = (await getTicker(config.get('bittrexMarket'))).Ask; // Consider the current Ask price as the last buy price
+    }
   }
 
   // TODO : Cancel all open orders when the script starts
