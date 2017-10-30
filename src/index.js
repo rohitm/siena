@@ -159,6 +159,13 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
     fact.lastBuyPrice = lastBuyPrice;
     fact.rangePercentage = range / ticker.Bid;
     fact.currentBidPrice = ticker.Bid;
+    if (fact.lastTrade === 'BUY') {
+      const band = fact.rangePercentage * lastBuyPrice;
+      const lowerSellTriggerPrice = lastBuyPrice - band;
+      const upperSellTriggerPrice = lastBuyPrice + band;
+      log.info(`getMarketTrend, Upper SELL trigger price:${upperSellTriggerPrice}`);
+      log.info(`getMarketTrend, Lower SELL trigger price:${lowerSellTriggerPrice}`);
+    }
   }
   log.info(`getMarketTrend, crossoverTime: ${fact.crossoverTime}`);
 
