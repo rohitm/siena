@@ -7,6 +7,10 @@ tail siena.log | ./node_modules/.bin/bunyan
 tail market-history-cache.log | ./node_modules/.bin/bunyan
 echo "Current UTC:"
 date -u
+market=$(ruby -rjson -e 'j = JSON.parse(File.read("config/default.json")); puts j["bittrexMarket"]')
+echo "Bittrex Cache Range:"
+redis-cli ZRANGEBYSCORE $market -inf +inf LIMIT 0 1
+redis-cli ZREVRANGEBYSCORE $market +inf -inf LIMIT 0 1
 echo "Last few crossovers:"
 cat siena.log | ./node_modules/.bin/bunyan | grep "crossover" | tail
 echo "Last Transaction:"
