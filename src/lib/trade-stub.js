@@ -1,7 +1,7 @@
 const config = require('config');
-const logger = require('cli-logger');
+const bunyan = require('bunyan');
 
-const log = logger({ level: logger.INFO });
+const log = bunyan.createLogger({ name: 'trade-stub' });
 
 const getCommission = (quantity, price) => quantity * price * config.get('bittrexCommission');
 

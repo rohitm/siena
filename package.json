@@ -5,6 +5,7 @@
   "main": "src/index.js",
   "dependencies": {
     "bluebird": "^3.5.0",
+    "bunyan": "^1.8.12",
     "cli-logger": "^0.5.40",
     "config": "^1.26.2",
     "express": "^4.15.4",

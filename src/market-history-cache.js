@@ -1,12 +1,12 @@
 const getBittrexMarketHistory = require('./lib/get-bittrex-market-history');
 const _ = require('lodash');
 const redis = require('redis');
-const logger = require('cli-logger');
+const bunyan = require('bunyan');
 const bluebird = require('bluebird');
 const express = require('express');
 const config = require('config');
 
-const log = logger({ level: logger.INFO });
+const log = bunyan.createLogger({ name: 'market-history-cache' });
 
 bluebird.promisifyAll(redis.RedisClient.prototype);
 bluebird.promisifyAll(redis.Multi.prototype);

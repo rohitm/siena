@@ -1,9 +1,9 @@
 const movingAverage = require('./lib/moving-average');
-const logger = require('cli-logger');
+const bunyan = require('bunyan');
 const redis = require('redis');
 const config = require('config');
 
-const log = logger({ level: logger.INFO });
+const log = bunyan.createLogger({ name: 'poll' });
 
 const shortPeriod = config.get('strategy.shortPeriod');
 const midPeriod = config.get('strategy.midPeriod');

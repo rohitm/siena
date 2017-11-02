@@ -1,7 +1,8 @@
 const request = require('request');
-const logger = require('cli-logger');
+const bunyan = require('bunyan');
 
-const log = logger({ level: logger.INFO });
+const log = bunyan.createLogger({ name: 'get-bittrex-market-history' });
+
 
 const getBittrexMarketHistory = market => new Promise(async (resolveHistory, rejectHistory) => request(`https://bittrex.com/api/v1.1/public/getmarkethistory?market=${market}`, (error, response) => {
   if (error) {

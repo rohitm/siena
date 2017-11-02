@@ -1,7 +1,6 @@
 const RuleEngine = require('node-rules');
 const _ = require('lodash');
 const config = require('config');
-const logger = require('cli-logger');
 const redis = require('redis');
 const getBalances = require('./lib/get-balances');
 const Account = require('./lib/account');
@@ -12,8 +11,9 @@ const sellLimit = require('./lib/sell-limit');
 const tradeStub = require('./lib/trade-stub');
 const helper = require('./helper');
 const poll = require('./poll');
+const bunyan = require('bunyan');
 
-const log = logger({ level: logger.INFO });
+const log = bunyan.createLogger({ name: 'siena' });
 
 const redisClient = redis.createClient();
 const redisClientForCacheOperations = redis.createClient();

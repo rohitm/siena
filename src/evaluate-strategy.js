@@ -1,5 +1,5 @@
 const request = require('request');
-const logger = require('cli-logger');
+const bunyan = require('bunyan');
 const config = require('config');
 const getTicker = require('./lib/get-ticker');
 const getMarketHistory = require('./lib/get-market-history');
@@ -9,7 +9,7 @@ const fs = require('fs');
 const tradeStub = require('./lib/trade-stub');
 const Account = require('./lib/account');
 
-const log = logger({ level: logger.INFO });
+const log = bunyan.createLogger({ name: 'evaluate-strategy' });
 
 const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectGetCrossovers) => request(`${config.get('bittrexCache.getcrossoverurl')}?market=${market}`, (error, response) => {
   if (error) {
@@ -42,7 +42,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
     process.exit();
   }
 
-  let tradeAmount = 100; // How much currency you have to trade
+  let tradeAmount = 1000; // How much currency you have to trade
   const account = new Account(config.get('sienaAccount.baseCurrency'), tradeAmount);
   const buySellPoints = [];
 
