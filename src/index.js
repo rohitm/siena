@@ -76,7 +76,7 @@ const rules = [{
       _.has(this, 'currentBidPrice') &&
       _.has(this, 'rangePercentage') &&
       this.event === 'crossover' &&
-      this.currentBidPrice > (this.lastBuyPrice + (this.rangePercentage * this.lastBuyPrice)) &&
+      this.currentBidPrice > (this.lastBuyPrice + (config.get('strategy.upperSellPercentage') * this.lastBuyPrice)) &&
       this.lastTrade !== 'SELL' &&
       this.market !== 'BULL');
   },
@@ -94,7 +94,7 @@ const rules = [{
       _.has(this, 'currentBidPrice') &&
       _.has(this, 'rangePercentage') &&
       this.event === 'crossover' &&
-      this.currentBidPrice < (this.lastBuyPrice - (this.rangePercentage * this.lastBuyPrice)) &&
+      this.currentBidPrice < (this.lastBuyPrice - (config.get('strategy.lowerSellPercentage') * this.lastBuyPrice)) &&
       this.lastTrade === 'BUY' &&
       this.market === 'BEAR');
   },
@@ -160,9 +160,10 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
     fact.rangePercentage = range / ticker.Bid;
     fact.currentBidPrice = ticker.Bid;
     if (fact.lastTrade === 'BUY') {
-      const band = fact.rangePercentage * lastBuyPrice;
-      const lowerSellTriggerPrice = lastBuyPrice - band;
-      const upperSellTriggerPrice = lastBuyPrice + band;
+      const upperBand = config.get('strategy.upperSellPercentage') * parseFloat(lastBuyPrice);
+      const lowerBand = config.get('strategy.lowerSellPercentage') * parseFloat(lastBuyPrice);
+      const lowerSellTriggerPrice = parseFloat(lastBuyPrice) - lowerBand;
+      const upperSellTriggerPrice = parseFloat(lastBuyPrice) + upperBand;
       log.info(`getMarketTrend, Upper SELL trigger price:${upperSellTriggerPrice}`);
       log.info(`getMarketTrend, Lower SELL trigger price:${lowerSellTriggerPrice}`);
     }

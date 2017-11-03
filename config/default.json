@@ -11,12 +11,14 @@
   "strategy": {
     "shortPeriod": 1800000,
     "midPeriod": 18000000,
-    "longPeriod": 46800000
+    "longPeriod": 46800000,
+    "upperSellPercentage": 0.01,
+    "lowerSellPercentage": 0.01
   },
   "sienaAccount": {
     "baseCurrency": "USDT",
     "securityCurrency":"ETH",
-    "tradeAmountUpperLimit": 1000,
+    "tradeAmountUpperLimit": 100000,
     "tradeAmountPercentage": 1,
     "criticalPoint": 800
   },
