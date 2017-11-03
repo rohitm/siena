@@ -17,7 +17,7 @@ redis-cli ZRANGEBYSCORE $market -inf +inf LIMIT 0 1
 redis-cli ZREVRANGEBYSCORE $market +inf -inf LIMIT 0 1
 echo
 echo "Last few crossovers:"
-cat siena.log | ./node_modules/.bin/bunyan | grep "crossover" | tail
+grep "crossover" siena.log | tail | ./node_modules/.bin/bunyan
 echo
 echo "Last Transaction:"
 grep "for" siena.log | tail -1
