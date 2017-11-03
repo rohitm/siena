@@ -347,7 +347,8 @@ updateBalance().then(async (bittrexBalances) => {
 
     // We don't know the last price that you bought the security in your account for
     if (!Number.isNaN(parseFloat(process.argv[2]))) {
-      lastBuyPrice = process.argv[2]; // Get the price that was passed as a command line argument
+      // Get the price that was passed as a command line argument
+      lastBuyPrice = parseFloat(process.argv[2]);
     } else {
       lastBuyPrice = (await getTicker(config.get('bittrexMarket'))).Ask; // Consider the current Ask price as the last buy price
     }
