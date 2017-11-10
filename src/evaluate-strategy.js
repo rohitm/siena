@@ -58,14 +58,14 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
     log.info(`trend:${crossoverPoint.trend}, crossoverTime: ${crossoverPoint.timestamp}, market:${(crossoverPoint.market || 'nevermind')}, balance:${position.account.getBalanceNumber()}, timeSinceLastTrade: ${helper.millisecondsToHours(timeSinceLastTrade)}, lastBuyPrice: ${(position.lastBuyPrice || 'nevermind')}, bidPrice: ${crossoverPoint.bidPrice}, securityBalance: ${position.security}`);
     if (
       position.account.getBalanceNumber() > 1 &&
-      (
+      ((
         crossoverPoint.market === 'VOLATILE-LOW' &&
         position.lastTrade !== 'SELL-LOW'
       ) || (
-        crossoverPoint.market !== 'BEAR' &&
-        position.lastTrade === 'SELL-LOW' &&
-        position.lastSellPrice > crossoverPoint.askPrice
-      )
+          crossoverPoint.market !== 'BEAR' &&
+          position.lastTrade === 'SELL-LOW' &&
+          position.lastSellPrice > crossoverPoint.askPrice
+        ))
     ) {
       log.info(`position.lastTrade: ${position.lastTrade}`);
       log.info(`Time since last trade : ${helper.millisecondsToHours(timeSinceLastTrade)}`);
@@ -89,16 +89,15 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
           // Dont sell in a bull market
           crossoverPoint.market !== 'BULL' &&
           // Make sure the sell price is some percentage higher than the buy price
-          crossoverPoint.bidPrice > (position.lastBuyPrice + (0.02 * position.lastBuyPrice))
+          crossoverPoint.bidPrice > (position.lastBuyPrice + (0.01 * position.lastBuyPrice))
         ) ||
         (
           // Market has turned bear, cut your loss short
           crossoverPoint.market === 'BEAR' &&
-          crossoverPoint.bidPrice < (position.lastBuyPrice - (0.02 * position.lastBuyPrice))
+          crossoverPoint.bidPrice < (position.lastBuyPrice - (0.01 * position.lastBuyPrice))
         )
       ) && position.security > 0
         && position.lastTrade === 'BUY') {
-
       // Sell at the bid price
       // Commission is in USDT
       const quantity = position.security;
@@ -118,7 +117,6 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
     return (position);
   }, { security: 0, account, lastTradeTime: null });
   if (strategyResult.security > 0) {
-    console.log('sell price:');
     // Sell off any security
     const trade = tradeStub.sell(strategyResult.security, ticker.Ask);
     strategyResult.account.credit(trade.total);

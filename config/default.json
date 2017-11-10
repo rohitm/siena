@@ -1,7 +1,7 @@
 {
   "cacheServerPort": 3452,
   "pollIntervalMinutes": 15,
-  "cachePeriodInHours": 168,
+  "cachePeriodInHours": 24,
   "balancePollInterval": 60000,
   "trade": true,
   "bittrexMarket": "USDT-ETH",
@@ -12,8 +12,8 @@
     "shortPeriod": 1800000,
     "midPeriod": 18000000,
     "longPeriod": 46800000,
-    "upperSellPercentage": 0.01,
-    "lowerSellPercentage": 0.01
+    "upperSellPercentage": 0.02,
+    "lowerSellPercentage": 0.02
   },
   "sienaAccount": {
     "baseCurrency": "USDT",

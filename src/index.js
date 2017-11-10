@@ -24,6 +24,7 @@ let crossover;
 let lastTrade;
 let lastTradeTime = 0;
 let lastBuyPrice = 0;
+let lastSellPrice = 0;
 const sienaAccount = new Account();
 
 // Automation rules
@@ -60,10 +61,27 @@ const rules = [{
       _.has(this, 'lastTrade') &&
       this.event === 'crossover' &&
       this.market === 'VOLATILE-LOW' &&
-      this.lastTrade !== 'BUY');
+      this.lastTrade === 'SELL-HIGH');
   },
   consequence: function consequence(R) {
     // Buy security on the cheap as long as it isn't a bear market.
+    this.actions = ['buySecurity'];
+    R.stop();
+  },
+}, {
+  condition: function condition(R) {
+    R.when(_.has(this, 'event') &&
+      _.has(this, 'market') &&
+      _.has(this, 'lastTrade') &&
+      _.has(this, 'currentBidPrice') &&
+      _.has(this, 'lastSellPrice') &&
+      this.event === 'crossover' &&
+      this.market !== 'BEAR' &&
+      this.lastTrade === 'SELL-LOW' &&
+      this.currentBidPrice < this.lastSellPrice);
+  },
+  consequence: function consequence(R) {
+    // We've incurred a loss the last sale so buy it on the cheaper than your last sell price.
     this.actions = ['buySecurity'];
     R.stop();
   },
@@ -77,7 +95,7 @@ const rules = [{
       _.has(this, 'rangePercentage') &&
       this.event === 'crossover' &&
       this.currentBidPrice > (this.lastBuyPrice + (config.get('strategy.upperSellPercentage') * this.lastBuyPrice)) &&
-      this.lastTrade !== 'SELL' &&
+      this.lastTrade === 'BUY' &&
       this.market !== 'BULL');
   },
   consequence: function consequence(R) {
@@ -154,11 +172,12 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
   ];
 
   const [range, ticker] = await Promise.all(tasks);
+  fact.currentBidPrice = ticker.Bid;
+  fact.rangePercentage = range / ticker.Bid;
 
   if (lastBuyPrice > 0) {
     fact.lastBuyPrice = lastBuyPrice;
-    fact.rangePercentage = range / ticker.Bid;
-    fact.currentBidPrice = ticker.Bid;
+
     if (fact.lastTrade === 'BUY') {
       const upperBand = config.get('strategy.upperSellPercentage') * parseFloat(lastBuyPrice);
       const lowerBand = config.get('strategy.lowerSellPercentage') * parseFloat(lastBuyPrice);
@@ -168,6 +187,11 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
       log.info(`getMarketTrend, Lower SELL trigger price:${lowerSellTriggerPrice}`);
     }
   }
+
+  if (lastSellPrice > 0) {
+    fact.lastSellPrice = lastSellPrice;
+  }
+
   log.info(`getMarketTrend, crossoverTime: ${fact.crossoverTime}`);
 
   redisClientMessageQueue.publish('facts', JSON.stringify(fact));
@@ -205,7 +229,11 @@ const updateLastTradeTime = async (expectedBalance, action, price = undefined) =
   const balance = account.setBittrexBalance(await updateBalance());
   log.info(`updateLastTradeTime: actual balance:${balance}, expected balance: ${expectedBalance}.`);
   if (balance.toFixed(2) === expectedBalance.toFixed(2)) {
-    lastBuyPrice = price;
+    if (action === 'BUY') {
+      lastBuyPrice = price;
+    } else {
+      lastSellPrice = price;
+    }
 
     // trade was successful
     lastTradeTime = new Date().getTime();
@@ -282,7 +310,11 @@ const sellSecurity = async () => {
     const expectedBalance = sienaAccount.getBalanceNumber() + trade.total;
 
     // Assume that this order gets filled and then update the balance
-    setTimeout(() => { updateLastTradeTime(expectedBalance, 'SELL'); }, config.get('balancePollInterval'));
+    setTimeout(() => {
+      updateLastTradeTime(expectedBalance,
+        (parseFloat(ticker.Bid) > parseFloat(lastBuyPrice) ? 'SELL-HIGH' : 'SELL-LOW'),
+        ticker.Bid);
+    }, config.get('balancePollInterval'));
     return (true);
   }
 
@@ -341,7 +373,7 @@ updateBalance().then(async (bittrexBalances) => {
   const account = new Account();
   if (account.setBittrexBalance(bittrexBalances) > 1) {
     // Some crypto currency should have been sold to have this balance
-    lastTrade = 'SELL';
+    lastTrade = 'SELL-HIGH';
   } else {
     lastTrade = 'BUY';
 
