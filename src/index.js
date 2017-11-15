@@ -6,6 +6,7 @@ const getBalances = require('./lib/get-balances');
 const Account = require('./lib/account');
 const getTicker = require('./lib/get-ticker');
 const getRange = require('./lib/get-range');
+const getUpperSellPercentage = require('./lib/get-upper-sell-percentage');
 const buyLimit = require('./lib/buy-limit');
 const sellLimit = require('./lib/sell-limit');
 const tradeStub = require('./lib/trade-stub');
@@ -25,6 +26,7 @@ let lastTrade;
 let lastTradeTime = 0;
 let lastBuyPrice = 0;
 let lastSellPrice = 0;
+let upperSellPercentage = config.get('strategy.upperSellPercentage');
 let transactionLock = false;
 const sienaAccount = new Account();
 
@@ -62,7 +64,7 @@ const rules = [{
       _.has(this, 'lastTrade') &&
       this.event === 'crossover' &&
       this.market === 'VOLATILE-LOW' &&
-      this.lastTrade === 'SELL-HIGH');
+      this.lastTrade !== 'BUY');
   },
   consequence: function consequence(R) {
     // Buy security on the cheap as long as it isn't a bear market.
@@ -95,7 +97,7 @@ const rules = [{
       _.has(this, 'currentBidPrice') &&
       _.has(this, 'rangePercentage') &&
       this.event === 'crossover' &&
-      this.currentBidPrice > (this.lastBuyPrice + (config.get('strategy.upperSellPercentage') * this.lastBuyPrice)) &&
+      this.currentBidPrice > (this.lastBuyPrice + (upperSellPercentage * this.lastBuyPrice)) &&
       this.lastTrade === 'BUY' &&
       this.market !== 'BULL');
   },
@@ -189,15 +191,6 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
 
   if (lastBuyPrice > 0) {
     fact.lastBuyPrice = lastBuyPrice;
-
-    if (fact.lastTrade === 'BUY') {
-      const upperBand = config.get('strategy.upperSellPercentage') * parseFloat(lastBuyPrice);
-      const lowerBand = config.get('strategy.lowerSellPercentage') * parseFloat(lastBuyPrice);
-      const lowerSellTriggerPrice = parseFloat(lastBuyPrice) - lowerBand;
-      const upperSellTriggerPrice = parseFloat(lastBuyPrice) + upperBand;
-      log.info(`getMarketTrend, Upper SELL trigger price:${upperSellTriggerPrice}`);
-      log.info(`getMarketTrend, Lower SELL trigger price:${lowerSellTriggerPrice}`);
-    }
   }
 
   if (lastSellPrice > 0) {
@@ -243,6 +236,15 @@ const updateLastTradeTime = async (expectedBalance, action, price = undefined) =
   if (balance.toFixed(2) === expectedBalance.toFixed(2)) {
     if (action === 'BUY') {
       lastBuyPrice = price;
+
+      // Calculate the SELL trigger prices
+      upperSellPercentage = await getUpperSellPercentage(price);
+      const upperBand = upperSellPercentage * parseFloat(lastBuyPrice);
+      const lowerBand = config.get('strategy.lowerSellPercentage') * parseFloat(lastBuyPrice);
+      const lowerSellTriggerPrice = parseFloat(lastBuyPrice) - lowerBand;
+      const upperSellTriggerPrice = parseFloat(lastBuyPrice) + upperBand;
+      log.info(`getMarketTrend, Upper SELL trigger price:${upperSellTriggerPrice}`);
+      log.info(`getMarketTrend, Lower SELL trigger price:${lowerSellTriggerPrice}`);
     } else {
       lastSellPrice = price;
     }
