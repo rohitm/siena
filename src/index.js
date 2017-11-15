@@ -25,6 +25,7 @@ let lastTrade;
 let lastTradeTime = 0;
 let lastBuyPrice = 0;
 let lastSellPrice = 0;
+let transactionLock = false;
 const sienaAccount = new Account();
 
 // Automation rules
@@ -105,13 +106,10 @@ const rules = [{
   },
 }, {
   condition: function condition(R) {
-    R.when(_.has(this, 'event') &&
-      _.has(this, 'lastTrade') &&
+    R.when(_.has(this, 'lastTrade') &&
       _.has(this, 'market') &&
       _.has(this, 'lastBuyPrice') &&
       _.has(this, 'currentBidPrice') &&
-      _.has(this, 'rangePercentage') &&
-      this.event === 'crossover' &&
       this.currentBidPrice < (this.lastBuyPrice - (config.get('strategy.lowerSellPercentage') * this.lastBuyPrice)) &&
       this.lastTrade === 'BUY' &&
       this.market === 'BEAR');
@@ -153,6 +151,20 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
     crossover = currentMarket;
   }
 
+  let bearTicker;
+  if (currentMarket.market === 'BEAR' && lastTrade === 'BUY' && lastBuyPrice > 0) {
+    const bearFact = _.cloneDeep(currentMarket);
+    bearFact.lastTrade = lastTrade;
+    bearFact.lastBuyPrice = lastBuyPrice;
+
+    bearTicker = await getTicker(config.get('bittrexMarket'));
+    bearFact.currentBidPrice = bearTicker.Bid;
+
+    // We need to publish this fact to the rules engine so that we can SELL
+    // at the right time instead of waiting for a crossover moment.
+    redisClientMessageQueue.publish('facts', JSON.stringify(bearFact));
+  }
+
   if (_.isEqual(crossover, currentMarket)) {
     // The market has not crossedOver based on the last value
     return false;
@@ -168,7 +180,7 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
 
   const tasks = [
     getRange(config.get('bittrexMarket')),
-    getTicker(config.get('bittrexMarket')),
+    bearTicker || getTicker(config.get('bittrexMarket')),
   ];
 
   const [range, ticker] = await Promise.all(tasks);
@@ -238,6 +250,7 @@ const updateLastTradeTime = async (expectedBalance, action, price = undefined) =
     // trade was successful
     lastTradeTime = new Date().getTime();
     lastTrade = action;
+    transactionLock = false;
     log.info(`updateLastTradeTime: lastTradeTime: ${lastTradeTime}, lastBuyPrice: ${(lastBuyPrice || 'nevermind')}`);
   } else {
     log.error('updateLastTradeTime, Error: lastTrade unsuccessful');
@@ -254,6 +267,10 @@ const buySecurity = async () => {
   if (config.get('trade') === false) {
     log.info('buySecurity, trade: false. Skipping security trades');
     return (false);
+  }
+
+  if (transactionLock) {
+    log.info('buySecurity, transactionLock: true. Transaction in progress.');
   }
 
   const tasks = [
@@ -291,6 +308,10 @@ const sellSecurity = async () => {
   if (config.get('trade') === false) {
     log.info('sellSecurity, trade: false. Skipping security trades');
     return (false);
+  }
+
+  if (transactionLock) {
+    log.info('sellSecurity, transactionLock: true. Transaction in progress.');
   }
 
   const tasks = [
