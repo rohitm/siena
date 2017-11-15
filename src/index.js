@@ -271,8 +271,10 @@ const buySecurity = async () => {
 
   if (transactionLock) {
     log.info('buySecurity, transactionLock: true. Transaction in progress.');
+    return (false);
   }
 
+  transactionLock = true;
   const tasks = [
     getBalances(),
     getTicker(config.get('bittrexMarket')),
@@ -312,7 +314,10 @@ const sellSecurity = async () => {
 
   if (transactionLock) {
     log.info('sellSecurity, transactionLock: true. Transaction in progress.');
+    return (false);
   }
+
+  transactionLock = true;
 
   const tasks = [
     getBalances(),
@@ -406,7 +411,7 @@ updateBalance().then(async (bittrexBalances) => {
       lastBuyPrice = (await getTicker(config.get('bittrexMarket'))).Ask; // Consider the current Ask price as the last buy price
     }
 
-    log.info(`updateBalance, lastBuyPrice: ${lastBuyPrice}`);
+    log.info(`updateBalance, lastBuyPrice: ${lastTrade}`);
   }
   log.info(`updateBalance, lastTrade: ${lastTrade}`);
   // TODO : Cancel all open orders when the script starts
