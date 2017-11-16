@@ -330,7 +330,7 @@ const sellSecurity = async () => {
   try {
     [bittrexBalances, ticker] = await Promise.all(tasks);
   } catch (err) {
-    log.error(`sellSecurity, error : ${err}`);
+    log.error(`sellSecurity, Error : ${err}`);
     return (false);
   }
 
