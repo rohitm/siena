@@ -316,7 +316,6 @@ const sellSecurity = async () => {
 
   if (transactionLock) {
     log.info('sellSecurity, transactionLock: true. Transaction in progress.');
-    return (false);
   }
 
   transactionLock = true;
@@ -326,7 +325,15 @@ const sellSecurity = async () => {
     getTicker(config.get('bittrexMarket')),
   ];
 
-  const [bittrexBalances, ticker] = await Promise.all(tasks);
+  let ticker;
+  let bittrexBalances;
+  try {
+    [bittrexBalances, ticker] = await Promise.all(tasks);
+  } catch (err) {
+    log.error(`sellSecurity, error : ${err}`);
+    return (false);
+  }
+
   sienaAccount.setBittrexBalance(bittrexBalances);
 
   const securityQuantity = sienaAccount.getBittrexBalance();
