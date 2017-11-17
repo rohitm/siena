@@ -276,7 +276,7 @@ const buySecurity = async () => {
     return (false);
   }
 
-  transactionLock = false;
+  transactionLock = true;
   const tasks = [
     getBalances(),
     getTicker(config.get('bittrexMarket')),
@@ -290,6 +290,7 @@ const buySecurity = async () => {
   sienaAccount.setBittrexBalance(bittrexBalances);
   if (sienaAccount.getBalanceNumber() < 1) {
     log.error(`buySecurity Error, account Balance : ${sienaAccount.getBalanceNumber()}. Not enough balance`);
+    transactionLock = false;
     return (false);
   }
 
@@ -318,7 +319,7 @@ const sellSecurity = async () => {
     log.info('sellSecurity, transactionLock: true. Transaction in progress.');
   }
 
-  transactionLock = false;
+  transactionLock = true;
 
   const tasks = [
     getBalances(),
@@ -331,6 +332,7 @@ const sellSecurity = async () => {
     [bittrexBalances, ticker] = await Promise.all(tasks);
   } catch (err) {
     log.error(`sellSecurity, Error : ${err}`);
+    transactionLock = false;
     return (false);
   }
 
@@ -354,6 +356,7 @@ const sellSecurity = async () => {
   }
 
   log.error('sellSecurity Error: No security to Sell');
+  transactionLock = false;
   return (false);
 };
 
