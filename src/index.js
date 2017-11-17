@@ -276,7 +276,7 @@ const buySecurity = async () => {
     return (false);
   }
 
-  transactionLock = true;
+  transactionLock = false;
   const tasks = [
     getBalances(),
     getTicker(config.get('bittrexMarket')),
@@ -318,7 +318,7 @@ const sellSecurity = async () => {
     log.info('sellSecurity, transactionLock: true. Transaction in progress.');
   }
 
-  transactionLock = true;
+  transactionLock = false;
 
   const tasks = [
     getBalances(),
