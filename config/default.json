@@ -3,7 +3,7 @@
   "pollIntervalMinutes": 15,
   "cachePeriodInHours": 24,
   "balancePollInterval": 60000,
-  "trade": true,
+  "trade": false,
   "bittrexMarket": "USDT-ETH",
   "bittrexApiKey": "***",
   "bittrexApiSecret": "***",
@@ -13,7 +13,8 @@
     "midPeriod": 18000000,
     "longPeriod": 46800000,
     "upperSellPercentage": 0.02,
-    "lowerSellPercentage": 0.02
+    "lowerSellPercentage": 0.02,
+    "minimumMovingAverageSpread": 0.2
   },
   "sienaAccount": {
     "baseCurrency": "USDT",
