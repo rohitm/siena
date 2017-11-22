@@ -59,7 +59,8 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
     if (
       position.account.getBalanceNumber() > 1 &&
       ((
-        crossoverPoint.market === 'VOLATILE-LOW'
+        crossoverPoint.market === 'VOLATILE-LOW' &&
+        (crossoverPoint.movingAverageLong - crossoverPoint.movingAverageShort) > 0.2
       ) || (
           crossoverPoint.market !== 'BEAR' &&
           position.lastTrade === 'SELL-LOW' &&
@@ -93,7 +94,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
         (
           // Market has turned bear, cut your loss short
           crossoverPoint.market === 'BEAR' &&
-          crossoverPoint.bidPrice < (position.lastBuyPrice - (0.02 * position.lastBuyPrice))
+          crossoverPoint.bidPrice < (position.lastBuyPrice - (0.01 * position.lastBuyPrice))
         )
       ) && position.security > 0
         && position.lastTrade === 'BUY') {

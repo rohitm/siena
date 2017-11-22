@@ -62,8 +62,10 @@ const rules = [{
     R.when(_.has(this, 'event') &&
       _.has(this, 'market') &&
       _.has(this, 'lastTrade') &&
+      _.has(this, 'movingAverageSpread') &&
       this.event === 'crossover' &&
       this.market === 'VOLATILE-LOW' &&
+      this.movingAverageSpread > config.get('strategy.minimumMovingAverageSpread') &&
       this.lastTrade !== 'BUY');
   },
   consequence: function consequence(R) {
@@ -130,6 +132,7 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
   } else {
     currentMarket.trend = 'DOWN';
   }
+  currentMarket.movingAverageSpread = movingAverageLong - movingAverageShort;
 
   if (movingAverageShort >= movingAverageMid && movingAverageMid >= movingAverageLong) {
     currentMarket.market = 'BULL';
