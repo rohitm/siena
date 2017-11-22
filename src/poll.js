@@ -9,7 +9,7 @@ const shortPeriod = config.get('strategy.shortPeriod');
 const midPeriod = config.get('strategy.midPeriod');
 const longPeriod = config.get('strategy.longPeriod');
 
-const redisClient = redis.createClient();
+const redisClient = redis.createClient(config.get('redis.port'), config.get('redis.hostname'), { no_ready_check: true });
 redisClient.on('error', redisError => log.error(redisError));
 
 const poll = market => new Promise(async (resolvePoll) => {

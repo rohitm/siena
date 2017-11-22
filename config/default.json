@@ -23,6 +23,10 @@
     "tradeAmountPercentage": 1,
     "criticalPoint": 800
   },
+  "redis": {
+    "hostname": "localhost",
+    "port": 6379
+  },
   "bittrex": {
     "getmarkethistoryurl": "https://bittrex.com/api/v1.1/public/getmarkethistory",
     "gettickerurl": "https://bittrex.com/api/v1.1/public/getticker",

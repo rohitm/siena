@@ -16,9 +16,9 @@ const bunyan = require('bunyan');
 
 const log = bunyan.createLogger({ name: 'siena' });
 
-const redisClient = redis.createClient();
-const redisClientForCacheOperations = redis.createClient();
-const redisClientMessageQueue = redis.createClient();
+const redisClient = redis.createClient(config.get('redis.port'), config.get('redis.hostname'), { no_ready_check: true });
+const redisClientForCacheOperations = redis.createClient(config.get('redis.port'), config.get('redis.hostname'), { no_ready_check: true });
+const redisClientMessageQueue = redis.createClient(config.get('redis.port'), config.get('redis.hostname'), { no_ready_check: true });
 redisClient.on('error', redisError => log.error(redisError));
 
 let crossover;
