@@ -6,6 +6,7 @@ const getBalances = require('./lib/get-balances');
 const Account = require('./lib/account');
 const getTicker = require('./lib/get-ticker');
 const getRange = require('./lib/get-range');
+const getUpperSellPercentage = require('./lib/get-upper-sell-percentage');
 const buyLimit = require('./lib/buy-limit');
 const sellLimit = require('./lib/sell-limit');
 const tradeStub = require('./lib/trade-stub');
@@ -15,15 +16,18 @@ const bunyan = require('bunyan');
 
 const log = bunyan.createLogger({ name: 'siena' });
 
-const redisClient = redis.createClient();
-const redisClientForCacheOperations = redis.createClient();
-const redisClientMessageQueue = redis.createClient();
+const redisClient = redis.createClient(config.get('redis.port'), config.get('redis.hostname'), { no_ready_check: true });
+const redisClientForCacheOperations = redis.createClient(config.get('redis.port'), config.get('redis.hostname'), { no_ready_check: true });
+const redisClientMessageQueue = redis.createClient(config.get('redis.port'), config.get('redis.hostname'), { no_ready_check: true });
 redisClient.on('error', redisError => log.error(redisError));
 
 let crossover;
 let lastTrade;
 let lastTradeTime = 0;
 let lastBuyPrice = 0;
+let lastSellPrice = 0;
+let upperSellPercentage = config.get('strategy.upperSellPercentage');
+let transactionLock = false;
 const sienaAccount = new Account();
 
 // Automation rules
@@ -58,12 +62,31 @@ const rules = [{
     R.when(_.has(this, 'event') &&
       _.has(this, 'market') &&
       _.has(this, 'lastTrade') &&
+      _.has(this, 'movingAverageSpread') &&
       this.event === 'crossover' &&
       this.market === 'VOLATILE-LOW' &&
+      this.movingAverageSpread > config.get('strategy.minimumMovingAverageSpread') &&
       this.lastTrade !== 'BUY');
   },
   consequence: function consequence(R) {
     // Buy security on the cheap as long as it isn't a bear market.
+    this.actions = ['buySecurity'];
+    R.stop();
+  },
+}, {
+  condition: function condition(R) {
+    R.when(_.has(this, 'event') &&
+      _.has(this, 'market') &&
+      _.has(this, 'lastTrade') &&
+      _.has(this, 'currentBidPrice') &&
+      _.has(this, 'lastSellPrice') &&
+      this.event === 'crossover' &&
+      this.market !== 'BEAR' &&
+      this.lastTrade === 'SELL-LOW' &&
+      this.currentBidPrice < this.lastSellPrice);
+  },
+  consequence: function consequence(R) {
+    // We've incurred a loss the last sale so buy it on the cheaper than your last sell price.
     this.actions = ['buySecurity'];
     R.stop();
   },
@@ -76,8 +99,8 @@ const rules = [{
       _.has(this, 'currentBidPrice') &&
       _.has(this, 'rangePercentage') &&
       this.event === 'crossover' &&
-      this.currentBidPrice > (this.lastBuyPrice + (config.get('strategy.upperSellPercentage') * this.lastBuyPrice)) &&
-      this.lastTrade !== 'SELL' &&
+      this.currentBidPrice > (this.lastBuyPrice + (upperSellPercentage * this.lastBuyPrice)) &&
+      this.lastTrade === 'BUY' &&
       this.market !== 'BULL');
   },
   consequence: function consequence(R) {
@@ -87,13 +110,10 @@ const rules = [{
   },
 }, {
   condition: function condition(R) {
-    R.when(_.has(this, 'event') &&
-      _.has(this, 'lastTrade') &&
+    R.when(_.has(this, 'lastTrade') &&
       _.has(this, 'market') &&
       _.has(this, 'lastBuyPrice') &&
       _.has(this, 'currentBidPrice') &&
-      _.has(this, 'rangePercentage') &&
-      this.event === 'crossover' &&
       this.currentBidPrice < (this.lastBuyPrice - (config.get('strategy.lowerSellPercentage') * this.lastBuyPrice)) &&
       this.lastTrade === 'BUY' &&
       this.market === 'BEAR');
@@ -112,6 +132,7 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
   } else {
     currentMarket.trend = 'DOWN';
   }
+  currentMarket.movingAverageSpread = movingAverageLong - movingAverageShort;
 
   if (movingAverageShort >= movingAverageMid && movingAverageMid >= movingAverageLong) {
     currentMarket.market = 'BULL';
@@ -135,6 +156,20 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
     crossover = currentMarket;
   }
 
+  let bearTicker;
+  if (currentMarket.market === 'BEAR' && lastTrade === 'BUY' && lastBuyPrice > 0) {
+    const bearFact = _.cloneDeep(currentMarket);
+    bearFact.lastTrade = lastTrade;
+    bearFact.lastBuyPrice = lastBuyPrice;
+
+    bearTicker = await getTicker(config.get('bittrexMarket'));
+    bearFact.currentBidPrice = bearTicker.Bid;
+
+    // We need to publish this fact to the rules engine so that we can SELL
+    // at the right time instead of waiting for a crossover moment.
+    redisClientMessageQueue.publish('facts', JSON.stringify(bearFact));
+  }
+
   if (_.isEqual(crossover, currentMarket)) {
     // The market has not crossedOver based on the last value
     return false;
@@ -150,24 +185,21 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
 
   const tasks = [
     getRange(config.get('bittrexMarket')),
-    getTicker(config.get('bittrexMarket')),
+    bearTicker || getTicker(config.get('bittrexMarket')),
   ];
 
   const [range, ticker] = await Promise.all(tasks);
+  fact.currentBidPrice = ticker.Bid;
+  fact.rangePercentage = range / ticker.Bid;
 
   if (lastBuyPrice > 0) {
     fact.lastBuyPrice = lastBuyPrice;
-    fact.rangePercentage = range / ticker.Bid;
-    fact.currentBidPrice = ticker.Bid;
-    if (fact.lastTrade === 'BUY') {
-      const upperBand = config.get('strategy.upperSellPercentage') * parseFloat(lastBuyPrice);
-      const lowerBand = config.get('strategy.lowerSellPercentage') * parseFloat(lastBuyPrice);
-      const lowerSellTriggerPrice = parseFloat(lastBuyPrice) - lowerBand;
-      const upperSellTriggerPrice = parseFloat(lastBuyPrice) + upperBand;
-      log.info(`getMarketTrend, Upper SELL trigger price:${upperSellTriggerPrice}`);
-      log.info(`getMarketTrend, Lower SELL trigger price:${lowerSellTriggerPrice}`);
-    }
   }
+
+  if (lastSellPrice > 0) {
+    fact.lastSellPrice = lastSellPrice;
+  }
+
   log.info(`getMarketTrend, crossoverTime: ${fact.crossoverTime}`);
 
   redisClientMessageQueue.publish('facts', JSON.stringify(fact));
@@ -205,11 +237,25 @@ const updateLastTradeTime = async (expectedBalance, action, price = undefined) =
   const balance = account.setBittrexBalance(await updateBalance());
   log.info(`updateLastTradeTime: actual balance:${balance}, expected balance: ${expectedBalance}.`);
   if (balance.toFixed(2) === expectedBalance.toFixed(2)) {
-    lastBuyPrice = price;
+    if (action === 'BUY') {
+      lastBuyPrice = price;
+
+      // Calculate the SELL trigger prices
+      upperSellPercentage = await getUpperSellPercentage(price);
+      const upperBand = upperSellPercentage * parseFloat(lastBuyPrice);
+      const lowerBand = config.get('strategy.lowerSellPercentage') * parseFloat(lastBuyPrice);
+      const lowerSellTriggerPrice = parseFloat(lastBuyPrice) - lowerBand;
+      const upperSellTriggerPrice = parseFloat(lastBuyPrice) + upperBand;
+      log.info(`getMarketTrend, Upper SELL trigger price:${upperSellTriggerPrice}`);
+      log.info(`getMarketTrend, Lower SELL trigger price:${lowerSellTriggerPrice}`);
+    } else {
+      lastSellPrice = price;
+    }
 
     // trade was successful
     lastTradeTime = new Date().getTime();
     lastTrade = action;
+    transactionLock = false;
     log.info(`updateLastTradeTime: lastTradeTime: ${lastTradeTime}, lastBuyPrice: ${(lastBuyPrice || 'nevermind')}`);
   } else {
     log.error('updateLastTradeTime, Error: lastTrade unsuccessful');
@@ -228,6 +274,12 @@ const buySecurity = async () => {
     return (false);
   }
 
+  if (transactionLock) {
+    log.info('buySecurity, transactionLock: true. Transaction in progress.');
+    return (false);
+  }
+
+  transactionLock = true;
   const tasks = [
     getBalances(),
     getTicker(config.get('bittrexMarket')),
@@ -241,6 +293,7 @@ const buySecurity = async () => {
   sienaAccount.setBittrexBalance(bittrexBalances);
   if (sienaAccount.getBalanceNumber() < 1) {
     log.error(`buySecurity Error, account Balance : ${sienaAccount.getBalanceNumber()}. Not enough balance`);
+    transactionLock = false;
     return (false);
   }
 
@@ -265,12 +318,27 @@ const sellSecurity = async () => {
     return (false);
   }
 
+  if (transactionLock) {
+    log.info('sellSecurity, transactionLock: true. Transaction in progress.');
+  }
+
+  transactionLock = true;
+
   const tasks = [
     getBalances(),
     getTicker(config.get('bittrexMarket')),
   ];
 
-  const [bittrexBalances, ticker] = await Promise.all(tasks);
+  let ticker;
+  let bittrexBalances;
+  try {
+    [bittrexBalances, ticker] = await Promise.all(tasks);
+  } catch (err) {
+    log.error(`sellSecurity, Error : ${err}`);
+    transactionLock = false;
+    return (false);
+  }
+
   sienaAccount.setBittrexBalance(bittrexBalances);
 
   const securityQuantity = sienaAccount.getBittrexBalance();
@@ -282,11 +350,16 @@ const sellSecurity = async () => {
     const expectedBalance = sienaAccount.getBalanceNumber() + trade.total;
 
     // Assume that this order gets filled and then update the balance
-    setTimeout(() => { updateLastTradeTime(expectedBalance, 'SELL'); }, config.get('balancePollInterval'));
+    setTimeout(() => {
+      updateLastTradeTime(expectedBalance,
+        (parseFloat(ticker.Bid) > parseFloat(lastBuyPrice) ? 'SELL-HIGH' : 'SELL-LOW'),
+        ticker.Bid);
+    }, config.get('balancePollInterval'));
     return (true);
   }
 
   log.error('sellSecurity Error: No security to Sell');
+  transactionLock = false;
   return (false);
 };
 
@@ -341,7 +414,7 @@ updateBalance().then(async (bittrexBalances) => {
   const account = new Account();
   if (account.setBittrexBalance(bittrexBalances) > 1) {
     // Some crypto currency should have been sold to have this balance
-    lastTrade = 'SELL';
+    lastTrade = 'SELL-HIGH';
   } else {
     lastTrade = 'BUY';
 
@@ -352,7 +425,9 @@ updateBalance().then(async (bittrexBalances) => {
     } else {
       lastBuyPrice = (await getTicker(config.get('bittrexMarket'))).Ask; // Consider the current Ask price as the last buy price
     }
-  }
 
+    log.info(`updateBalance, lastBuyPrice: ${lastBuyPrice}`);
+  }
+  log.info(`updateBalance, lastTrade: ${lastTrade}`);
   // TODO : Cancel all open orders when the script starts
 });

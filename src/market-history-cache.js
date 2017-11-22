@@ -11,7 +11,7 @@ const log = bunyan.createLogger({ name: 'market-history-cache' });
 bluebird.promisifyAll(redis.RedisClient.prototype);
 bluebird.promisifyAll(redis.Multi.prototype);
 
-const redisClient = redis.createClient();
+const redisClient = redis.createClient(config.get('redis.port'), config.get('redis.hostname'), { no_ready_check: true });
 redisClient.on('error', redisError => log.error(redisError));
 
 const cacheMarketHistory = (market, periodInMilliseconds) => new Promise(

@@ -27,6 +27,10 @@ const getTicker = (market, source = 'bittrex') => new Promise(async (resolveGetT
 
       return resolve(jsonBody.result);
     })));
+    // Sometimes bittrex returns null responses
+    if ((isNaN(ticker.Bid) || isNaN(ticker.Ask) || isNaN(ticker.Last))) {
+      throw new Error('Bittrex returned non numerical values');
+    }
 
     return resolveGetTicker(ticker);
   } catch (error) {
