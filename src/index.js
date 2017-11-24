@@ -132,7 +132,6 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
   } else {
     currentMarket.trend = 'DOWN';
   }
-  currentMarket.movingAverageSpread = movingAverageLong - movingAverageShort;
 
   if (movingAverageShort >= movingAverageMid && movingAverageMid >= movingAverageLong) {
     currentMarket.market = 'BULL';
@@ -178,6 +177,7 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
   // Market has crossedOver
   crossover = currentMarket;
   const fact = _.cloneDeep(crossover);
+  fact.movingAverageSpread = movingAverageLong - movingAverageShort;
   fact.event = 'crossover';
   fact.crossoverTime = new Date().getTime();
   fact.lastTradeTime = lastTradeTime;
