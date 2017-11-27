@@ -82,6 +82,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
       position.lastTradeTime = helper.cleanBittrexTimestamp(crossoverPoint.timestamp);
       position.lastBuyPrice = crossoverPoint.askPrice;
       position.lastTrade = 'BUY';
+      log.info(`Traded on ${new Date(position.lastTradeTime)}`);
       buySellPoints.push(`${helper.cleanBittrexTimestamp(crossoverPoint.timestamp)},${crossoverPoint.askPrice},1`);
     } else if (
       (
@@ -94,7 +95,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
         (
           // Market has turned bear, cut your loss short
           crossoverPoint.market === 'BEAR' &&
-          crossoverPoint.bidPrice < (position.lastBuyPrice - (0.01 * position.lastBuyPrice))
+          crossoverPoint.bidPrice < (position.lastBuyPrice - (0.1 * position.lastBuyPrice))
         )
       ) && position.security > 0
         && position.lastTrade === 'BUY') {
@@ -111,6 +112,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
         position.lastTrade = 'SELL-HIGH';
       }
       position.lastSellPrice = crossoverPoint.bidPrice;
+      log.info(`Traded on ${new Date(position.lastTradeTime)}`);
       buySellPoints.push(`${helper.cleanBittrexTimestamp(crossoverPoint.timestamp)},${crossoverPoint.bidPrice},0`);
     }
 
