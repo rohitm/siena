@@ -58,6 +58,10 @@ class Account {
     return compartmentalise(this.getBalanceNumber());
   }
 
+  getBittrexBalanceObj() {
+    return this.bittrexBalances;
+  }
+
   getBalanceNumber() {
     return this.tradeAmount + this.reserve;
   }

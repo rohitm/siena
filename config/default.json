@@ -21,7 +21,7 @@
     "securityCurrency":"ETH",
     "tradeAmountUpperLimit": 100000,
     "tradeAmountPercentage": 1,
-    "criticalPoint": 800
+    "criticalPoint": 0.2
   },
   "redis": {
     "hostname": "localhost",

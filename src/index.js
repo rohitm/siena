@@ -34,10 +34,13 @@ const sienaAccount = new Account();
 // Automation rules
 const rules = [{
   condition: function condition(R) {
-    R.when(_.has(this, 'netAssetValue') && (this.netAssetValue < config.get('sienaAccount.criticalPoint')));
+    R.when(_.has(this, 'principle') &&
+     _.has(this, 'currentAccountValue') &&
+     this.currentAccountValue < (this.principle - (config.get('sienaAccount.criticalPoint') * this.principle)));
   },
   consequence: function consequence(R) {
-    this.actions = ['sellSecurity', 'halt'];
+    // Market has crashed and your capital has eroded, Bail out!
+    this.actions = ['halt'];
     R.stop();
   },
 }, {
@@ -55,7 +58,7 @@ const rules = [{
       _.has(this, 'movingAverageLong'));
   },
   consequence: function consequence(R) {
-    this.actions = ['getMarketTrend'];
+    this.actions = ['getMarketTrend', 'getAccountValue'];
     R.stop();
   },
 }, {
@@ -125,6 +128,13 @@ const rules = [{
     R.stop();
   },
 }];
+
+const getAccountValue = async () => {
+  const account = new Account();
+  account.setBittrexBalance(sienaAccount.getBittrexBalanceObj());
+  const currentAccountValue = await account.getAccountValue();
+  redisClientMessageQueue.publish('facts', JSON.stringify({ principle, currentAccountValue }));
+};
 
 const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverageLong) => {
   const currentMarket = {};
@@ -398,6 +408,10 @@ redisClient.on('message', (channel, message) => {
       if (_.includes(result.actions, 'sellSecurity')) {
         sellSecurity();
       }
+
+      if (_.includes(result.actions, 'getAccountValue')) {
+        getAccountValue();
+      }
     });
   } catch (error) {
     log.error('Siena Rules : Error : ', error);
@@ -418,6 +432,8 @@ redisClient.subscribe('facts');
 
 // Update the current balance
 updateBalance().then(async (bittrexBalances) => {
+  sienaAccount.setBittrexBalance(bittrexBalances);
+
   const account = new Account();
   if (account.setBittrexBalance(bittrexBalances) > 1) {
     // Some crypto currency should have been sold to have this balance
