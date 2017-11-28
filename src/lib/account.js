@@ -1,5 +1,6 @@
 const config = require('config');
 const _ = require('lodash');
+const getTicker = require('./get-ticker');
 
 const compartmentalise = (amount) => {
   // Splits the money you have to trade and the rest into reserve
@@ -59,6 +60,16 @@ class Account {
 
   getBalanceNumber() {
     return this.tradeAmount + this.reserve;
+  }
+
+  async getAccountValue(bittrexBalances, market = config.get('bittrexMarket')) {
+    if (bittrexBalances !== undefined) {
+      this.setBittrexBalance(bittrexBalances);
+    }
+
+    const ticker = await getTicker(market);
+    const midPrice = (ticker.Bid + ticker.Ask) / 2;
+    return this.getBalanceNumber() + (this.getBittrexBalance() * midPrice);
   }
 
   getTradeAmount() {

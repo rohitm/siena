@@ -23,6 +23,7 @@ redisClient.on('error', redisError => log.error(redisError));
 
 let crossover;
 let lastTrade;
+let principle = 0;
 let lastTradeTime = 0;
 let lastBuyPrice = 0;
 let lastSellPrice = 0;
@@ -406,6 +407,12 @@ redisClient.on('message', (channel, message) => {
 // Keep polling the moving averages
 setInterval(() => poll(config.get('bittrexMarket')), 5000);
 
+// Update the priciple everyday
+setInterval(async () => {
+  principle = await sienaAccount.getAccountValue(await getBalances());
+  log.info(`principle: ${principle}`);
+}, 86400000);
+
 // Listen for facts
 redisClient.subscribe('facts');
 
@@ -429,5 +436,8 @@ updateBalance().then(async (bittrexBalances) => {
     log.info(`updateBalance, lastBuyPrice: ${lastBuyPrice}`);
   }
   log.info(`updateBalance, lastTrade: ${lastTrade}`);
+
+  principle = await account.getAccountValue();
+  log.info(`updateBalance, principle: ${principle}`);
   // TODO : Cancel all open orders when the script starts
 });
