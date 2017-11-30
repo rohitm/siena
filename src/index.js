@@ -29,6 +29,7 @@ let lastBuyPrice = 0;
 let lastSellPrice = 0;
 let upperSellPercentage = config.get('strategy.upperSellPercentage');
 let transactionLock = false;
+let allowTrading = config.get('trade');
 const sienaAccount = new Account();
 
 // Automation rules
@@ -280,7 +281,7 @@ const updateLastTradeTime = async (expectedBalance, action, price = undefined) =
 };
 
 const buySecurity = async () => {
-  if (config.get('trade') === false) {
+  if (allowTrading === false) {
     log.info('buySecurity, trade: false. Skipping security trades');
     return (false);
   }
@@ -324,7 +325,7 @@ const buySecurity = async () => {
 };
 
 const sellSecurity = async () => {
-  if (config.get('trade') === false) {
+  if (allowTrading === false) {
     log.info('sellSecurity, trade: false. Skipping security trades');
     return (false);
   }
@@ -374,6 +375,14 @@ const sellSecurity = async () => {
   return (false);
 };
 
+const halt = async () => {
+  // The market has crashed and your capital has eroded. Sell what you can stop trading!
+  if (lastTrade === 'BUY') {
+    await sellSecurity();
+  }
+  allowTrading = false;
+};
+
 // initialize the rule engine
 const R = new RuleEngine(rules);
 
@@ -411,6 +420,10 @@ redisClient.on('message', (channel, message) => {
 
       if (_.includes(result.actions, 'getAccountValue')) {
         getAccountValue();
+      }
+
+      if (_.includes(result.actions, 'halt')) {
+        halt();
       }
     });
   } catch (error) {
