@@ -29,6 +29,7 @@ let lastBuyPrice = 0;
 let lastSellPrice = 0;
 let upperSellPercentage = config.get('strategy.upperSellPercentage');
 let transactionLock = false;
+let allowTrading = config.get('trade');
 const sienaAccount = new Account();
 
 // Automation rules
@@ -279,7 +280,7 @@ const updateLastTradeTime = async (expectedBalance, action, price = undefined) =
 };
 
 const buySecurity = async () => {
-  if (config.get('trade') === false) {
+  if (allowTrading === false) {
     log.info('buySecurity, trade: false. Skipping security trades');
     return (false);
   }
@@ -323,7 +324,7 @@ const buySecurity = async () => {
 };
 
 const sellSecurity = async () => {
-  if (config.get('trade') === false) {
+  if (allowTrading === false) {
     log.info('sellSecurity, trade: false. Skipping security trades');
     return (false);
   }
@@ -373,6 +374,16 @@ const sellSecurity = async () => {
   return (false);
 };
 
+const halt = async () => {
+  // The market has crashed and your capital has eroded. Sell what you can stop trading!
+  if (lastTrade === 'BUY') {
+    await sellSecurity();
+  }
+
+  log.warn('Halting trades');
+  allowTrading = false;
+};
+
 // initialize the rule engine
 const R = new RuleEngine(rules);
 
@@ -411,6 +422,10 @@ redisClient.on('message', (channel, message) => {
       if (_.includes(result.actions, 'getAccountValue')) {
         getAccountValue();
       }
+
+      if (_.includes(result.actions, 'halt')) {
+        halt();
+      }
     });
   } catch (error) {
     log.error('Siena Rules : Error : ', error);
@@ -433,8 +448,8 @@ redisClient.subscribe('facts');
 updateBalance().then(async (bittrexBalances) => {
   sienaAccount.setBittrexBalance(bittrexBalances);
 
-  const account = new Account();
-  if (account.setBittrexBalance(bittrexBalances) > 1) {
+  if (sienaAccount.getBalanceNumber() > 0
+    && sienaAccount.getBalanceNumber() > sienaAccount.getBittrexBalance()) {
     // Some crypto currency should have been sold to have this balance
     lastTrade = 'SELL-HIGH';
   } else {
@@ -452,7 +467,7 @@ updateBalance().then(async (bittrexBalances) => {
   }
   log.info(`updateBalance, lastTrade: ${lastTrade}`);
 
-  principle = await account.getAccountValue();
+  principle = await sienaAccount.getAccountValue();
   log.info(`updateBalance, principle: ${principle}`);
   // TODO : Cancel all open orders when the script starts
 });
