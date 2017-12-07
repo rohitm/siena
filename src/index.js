@@ -380,6 +380,8 @@ const halt = async () => {
   if (lastTrade === 'BUY') {
     await sellSecurity();
   }
+
+  log.warn('Halting trades');
   allowTrading = false;
 };
 
@@ -447,8 +449,8 @@ redisClient.subscribe('facts');
 updateBalance().then(async (bittrexBalances) => {
   sienaAccount.setBittrexBalance(bittrexBalances);
 
-  const account = new Account();
-  if (account.setBittrexBalance(bittrexBalances) > 1) {
+  if (sienaAccount.getBalanceNumber() > 0
+    && sienaAccount.getBalanceNumber() > sienaAccount.getBittrexBalance()) {
     // Some crypto currency should have been sold to have this balance
     lastTrade = 'SELL-HIGH';
   } else {
@@ -466,7 +468,7 @@ updateBalance().then(async (bittrexBalances) => {
   }
   log.info(`updateBalance, lastTrade: ${lastTrade}`);
 
-  principle = await account.getAccountValue();
+  principle = await sienaAccount.getAccountValue();
   log.info(`updateBalance, principle: ${principle}`);
   // TODO : Cancel all open orders when the script starts
 });
