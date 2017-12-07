@@ -66,10 +66,8 @@ const rules = [{
     R.when(_.has(this, 'event') &&
       _.has(this, 'market') &&
       _.has(this, 'lastTrade') &&
-      _.has(this, 'movingAverageSpread') &&
       this.event === 'crossover' &&
-      this.market === 'VOLATILE-LOW' &&
-      this.movingAverageSpread > config.get('strategy.minimumMovingAverageSpread') &&
+      this.market === 'VOLATILE-MID' &&
       this.lastTrade !== 'BUY');
   },
   consequence: function consequence(R) {
@@ -188,7 +186,8 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
   // Market has crossedOver
   crossover = currentMarket;
   const fact = _.cloneDeep(crossover);
-  fact.movingAverageSpread = movingAverageLong - movingAverageShort;
+  fact.movingAverageSpread = Math.max(movingAverageLong, movingAverageMid, movingAverageShort)
+    - Math.min(movingAverageLong, movingAverageMid, movingAverageShort);
   fact.event = 'crossover';
   fact.crossoverTime = new Date().getTime();
   fact.lastTradeTime = lastTradeTime;
