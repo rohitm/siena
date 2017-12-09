@@ -302,7 +302,7 @@ const buySecurity = async () => {
 
   const [bittrexBalances, ticker] = await Promise.all(tasks);
   sienaAccount.setBittrexBalance(bittrexBalances);
-  if (sienaAccount.getBalanceNumber() < 1) {
+  if (sienaAccount.getBalanceNumber() === 0) {
     log.error(`buySecurity Error, account Balance : ${sienaAccount.getBalanceNumber()}. Not enough balance`);
     transactionLock = false;
     return (false);
