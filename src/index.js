@@ -68,11 +68,11 @@ const rules = [{
       _.has(this, 'market') &&
       _.has(this, 'lastTrade') &&
       this.event === 'crossover' &&
-      this.market === 'VOLATILE-MID' &&
+      this.market === 'BULL' &&
       this.lastTrade !== 'BUY');
   },
   consequence: function consequence(R) {
-    // Buy security on the cheap as long as it isn't a bear market.
+    // Buy security at the start of a bull run
     this.actions = ['buySecurity'];
     R.stop();
   },
@@ -89,7 +89,7 @@ const rules = [{
       this.currentBidPrice < this.lastSellPrice);
   },
   consequence: function consequence(R) {
-    // We've incurred a loss the last sale so buy it on the cheaper than your last sell price.
+    // We've incurred a loss from the last sale so buy it on the cheaper than your last sell price.
     this.actions = ['buySecurity'];
     R.stop();
   },
@@ -129,10 +129,16 @@ const rules = [{
 }];
 
 const getAccountValue = async () => {
+  if (transactionLock) {
+    // Only Compute account balances when a transaction is not in progress
+    return false;
+  }
+
   const account = new Account();
   account.setBittrexBalance(sienaAccount.getBittrexBalanceObj());
   const currentAccountValue = await account.getAccountValue();
   redisClientMessageQueue.publish('facts', JSON.stringify({ principle, currentAccountValue }));
+  return currentAccountValue;
 };
 
 const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverageLong) => {
