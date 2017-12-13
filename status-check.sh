@@ -4,6 +4,10 @@ echo
 echo "Running Services:"
 npm run forever-list
 echo
+echo
+echo "System uptime:"
+uptime
+echo
 echo "Logs:"
 tail siena.log | ./node_modules/.bin/bunyan
 tail market-history-cache.log | ./node_modules/.bin/bunyan
@@ -27,3 +31,10 @@ grep "Lower SELL trigger" siena.log | tail -1 | ./node_modules/.bin/bunyan
 echo
 echo "Upper Sell Trigger Price:"
 grep "Upper SELL trigger" siena.log | tail -1 | ./node_modules/.bin/bunyan
+HaltedTrade=$(cat siena.log | grep "Halt" | ./node_modules/.bin/bunyan)
+if [ ${#HaltedTrade} -gt 0 ]; then
+  echo
+  echo "Trading has been halted:"
+  echo $HaltedTrade
+  echo
+fi
