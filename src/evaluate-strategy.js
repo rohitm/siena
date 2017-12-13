@@ -59,7 +59,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
     if (
       position.account.getBalanceNumber() > 1 &&
       ((
-        crossoverPoint.market === 'VOLATILE-MID'
+        crossoverPoint.market === 'BULL'
       ) || (
           crossoverPoint.market !== 'BEAR' &&
           position.lastTrade === 'SELL-LOW' &&
