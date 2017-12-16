@@ -5,8 +5,8 @@ const redis = require('redis');
 const getBalances = require('./lib/get-balances');
 const Account = require('./lib/account');
 const getTicker = require('./lib/get-ticker');
-const getRange = require('./lib/get-range');
 const getUpperSellPercentage = require('./lib/get-upper-sell-percentage');
+const getMarketSummary = require('./lib/get-market-summary');
 const buyLimit = require('./lib/buy-limit');
 const sellLimit = require('./lib/sell-limit');
 const tradeStub = require('./lib/trade-stub');
@@ -67,12 +67,17 @@ const rules = [{
     R.when(_.has(this, 'event') &&
       _.has(this, 'market') &&
       _.has(this, 'lastTrade') &&
+      _.has(this, 'marketLow') &&
+      _.has(this, 'marketHigh') &&
+      _.has(this, 'currentBidPrice') &&
       this.event === 'crossover' &&
+      this.marketHigh > this.marketLow &&
+      this.currentBidPrice <= (this.marketHigh + this.marketLow) / 2 &&
       this.market === 'BULL' &&
       this.lastTrade !== 'BUY');
   },
   consequence: function consequence(R) {
-    // Buy security at the start of a bull run
+    // Buy security on the lower half of the daily range, and at the start of a bull run
     this.actions = ['buySecurity'];
     R.stop();
   },
@@ -89,7 +94,7 @@ const rules = [{
       this.currentBidPrice < this.lastSellPrice);
   },
   consequence: function consequence(R) {
-    // We've incurred a loss from the last sale so buy it on the cheaper than your last sell price.
+    // We've incurred a loss from the last sale so buy it back cheaper than the last sell price.
     this.actions = ['buySecurity'];
     R.stop();
   },
@@ -100,7 +105,6 @@ const rules = [{
       _.has(this, 'market') &&
       _.has(this, 'lastBuyPrice') &&
       _.has(this, 'currentBidPrice') &&
-      _.has(this, 'rangePercentage') &&
       this.event === 'crossover' &&
       this.currentBidPrice > (this.lastBuyPrice + (upperSellPercentage * this.lastBuyPrice)) &&
       this.lastTrade === 'BUY' &&
@@ -201,13 +205,14 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
   fact.lastTrade = lastTrade;
 
   const tasks = [
-    getRange(config.get('bittrexMarket')),
+    getMarketSummary(config.get('bittrexMarket')),
     bearTicker || getTicker(config.get('bittrexMarket')),
   ];
 
-  const [range, ticker] = await Promise.all(tasks);
+  const [marketSummary, ticker] = await Promise.all(tasks);
+  fact.marketHigh = parseFloat(marketSummary.High);
+  fact.marketLow = parseFloat(marketSummary.Low);
   fact.currentBidPrice = ticker.Bid;
-  fact.rangePercentage = range / ticker.Bid;
 
   if (lastBuyPrice > 0) {
     fact.lastBuyPrice = lastBuyPrice;
