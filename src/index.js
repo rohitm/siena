@@ -380,14 +380,20 @@ const sellSecurity = async () => {
   return (false);
 };
 
-const halt = async () => {
+const halt = async (currentAccountValue) => {
+  if (transactionLock) {
+    return false;
+  }
+
+  log.warn(`Halt: Market has crashed beyond your critical point of ${config.get('sienaAccount.criticalPoint') * 100}% from ${principle} to ${currentAccountValue}`);
   // The market has crashed and your capital has eroded. Sell what you can stop trading!
   if (lastTrade === 'BUY') {
     await sellSecurity();
   }
 
-  log.warn('Halting trades');
+  log.warn('Halt: Halting any further trades');
   allowTrading = false;
+  return true;
 };
 
 // initialize the rule engine
@@ -429,8 +435,8 @@ redisClient.on('message', (channel, message) => {
         getAccountValue();
       }
 
-      if (_.includes(result.actions, 'halt')) {
-        halt();
+      if (_.includes(result.actions, 'halt') && _.includes(fact, 'currentAccountValue')) {
+        halt(fact.currentAccountValue);
       }
     });
   } catch (error) {
