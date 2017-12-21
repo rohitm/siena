@@ -67,12 +67,8 @@ const rules = [{
     R.when(_.has(this, 'event') &&
       _.has(this, 'market') &&
       _.has(this, 'lastTrade') &&
-      _.has(this, 'marketLow') &&
-      _.has(this, 'marketHigh') &&
       _.has(this, 'currentBidPrice') &&
       this.event === 'crossover' &&
-      this.marketHigh > this.marketLow &&
-      this.currentBidPrice <= (this.marketHigh + this.marketLow) / 2 &&
       this.market === 'BULL' &&
       this.lastTrade !== 'BUY');
   },
