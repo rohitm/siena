@@ -45,7 +45,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
   let tradeAmount = 1000; // How much currency you have to trade
   const account = new Account(config.get('sienaAccount.baseCurrency'), tradeAmount);
   const buySellPoints = [];
-
+  const bidPrices = [];
   const strategyResult = crossoverData.reduce((accumatedPosition, crossoverPoint) => {
     const position = accumatedPosition;
     const timeSinceLastTrade = helper.cleanBittrexTimestamp(crossoverPoint.timestamp) -
@@ -56,6 +56,9 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
     // it has been atleast sometime since your last trade
 
     log.info(`trend:${crossoverPoint.trend}, crossoverTime: ${crossoverPoint.timestamp}, market:${(crossoverPoint.market || 'nevermind')}, balance:${position.account.getBalanceNumber()}, timeSinceLastTrade: ${helper.millisecondsToHours(timeSinceLastTrade)}, lastBuyPrice: ${(position.lastBuyPrice || 'nevermind')}, bidPrice: ${crossoverPoint.bidPrice}, securityBalance: ${position.security}`);
+    if (!isNaN(crossoverPoint.bidPrice) && crossoverPoint.bidPrice > 0 && crossoverPoint.bidPrice !== null) {
+      bidPrices.push(`${helper.cleanBittrexTimestamp(crossoverPoint.timestamp)},${crossoverPoint.bidPrice}`);
+    }
     if (
       position.account.getBalanceNumber() > 1 &&
       ((
@@ -89,7 +92,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
           // Dont sell in a bull market
           crossoverPoint.market !== 'BULL' &&
           // Make sure the sell price is some percentage higher than the buy price
-          crossoverPoint.bidPrice > (position.lastBuyPrice + (0.03 * position.lastBuyPrice))
+          crossoverPoint.bidPrice > (position.lastBuyPrice + (0.1 * position.lastBuyPrice))
         ) ||
         (
           // Market has turned bear, cut your loss short
@@ -137,33 +140,20 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
   const strategyResultDataFile = 'strategyResultData.txt';
   const strategyResultData = buySellPoints.join('\n');
 
+  // Generate a file with all the crossover points
+  const crossoverDataFile = 'crossoverData.txt';
+  const crossoverPricesData = bidPrices.join('\n');
+
   log.info(`Current balance based on strategy : ${strategyResult.account.getBalanceNumber()}, Current balance if you just bought and sold : ${tradeAmount}`);
-
-  const tradeHistoryDataFile = 'tradeHistory.txt';
-
-  // Get the market history to plot the data
-  const toTimestamp = new Date().getTime();
-  const fromTimestamp24 = toTimestamp - (3600000 * 168); // 24 hours
-
-  const marketHistoryData = await getMarketHistory(config.get('bittrexMarket'), fromTimestamp24, toTimestamp, 'bittrexCache');
-  const filteredData = helper.getSoldPricesBetweenPeriod(marketHistoryData,
-    fromTimestamp24,
-    toTimestamp);
-
-  const timestamps = _.map(filteredData, object =>
-    helper.cleanBittrexTimestamp(object.TimeStamp));
-  log.info(`Timestamps between ${new Date(Math.min(...timestamps))} and ${new Date(Math.max(...timestamps))} for about ${(Math.max(...timestamps) - Math.min(...timestamps)) / (1000 * 60 * 60)} hours`);
-
-  const tradeHistoryData = _.map(filteredData, object => `${helper.cleanBittrexTimestamp(object.TimeStamp)},${object.Price}`).join('\n');
 
   const fileWriteTasks = [
     new Promise(async resolveWrite => fs.writeFile(
-      tradeHistoryDataFile,
-      tradeHistoryData,
-      resolveWrite)),
-    new Promise(async resolveWrite => fs.writeFile(
       strategyResultDataFile,
       strategyResultData,
+      resolveWrite)),
+    new Promise(async resolveWrite => fs.writeFile(
+      crossoverDataFile,
+      crossoverPricesData,
       resolveWrite)),
   ];
 
