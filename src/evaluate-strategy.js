@@ -2,9 +2,7 @@ const request = require('request');
 const bunyan = require('bunyan');
 const config = require('config');
 const getTicker = require('./lib/get-ticker');
-const getMarketHistory = require('./lib/get-market-history');
 const helper = require('./helper');
-const _ = require('lodash');
 const fs = require('fs');
 const tradeStub = require('./lib/trade-stub');
 const Account = require('./lib/account');
@@ -56,18 +54,16 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
     // it has been atleast sometime since your last trade
 
     log.info(`trend:${crossoverPoint.trend}, crossoverTime: ${crossoverPoint.timestamp}, market:${(crossoverPoint.market || 'nevermind')}, balance:${position.account.getBalanceNumber()}, timeSinceLastTrade: ${helper.millisecondsToHours(timeSinceLastTrade)}, lastBuyPrice: ${(position.lastBuyPrice || 'nevermind')}, bidPrice: ${crossoverPoint.bidPrice}, securityBalance: ${position.security}`);
-    if (!isNaN(crossoverPoint.bidPrice) && crossoverPoint.bidPrice > 0 && crossoverPoint.bidPrice !== null) {
+    if (!isNaN(crossoverPoint.bidPrice) &&
+      crossoverPoint.bidPrice > 0 &&
+      crossoverPoint.bidPrice !== null) {
       bidPrices.push(`${helper.cleanBittrexTimestamp(crossoverPoint.timestamp)},${crossoverPoint.bidPrice}`);
     }
     if (
       position.account.getBalanceNumber() > 1 &&
       ((
         crossoverPoint.market === 'BULL'
-      ) || (
-          crossoverPoint.market !== 'BEAR' &&
-          position.lastTrade === 'SELL-LOW' &&
-          position.lastSellPrice > crossoverPoint.askPrice
-        ))
+      ))
     ) {
       log.info(`position.lastTrade: ${position.lastTrade}`);
       log.info(`Time since last trade : ${helper.millisecondsToHours(timeSinceLastTrade)}`);
@@ -92,12 +88,12 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
           // Dont sell in a bull market
           crossoverPoint.market !== 'BULL' &&
           // Make sure the sell price is some percentage higher than the buy price
-          crossoverPoint.bidPrice > (position.lastBuyPrice + (0.1 * position.lastBuyPrice))
+          crossoverPoint.bidPrice > (position.lastBuyPrice + (0.05 * position.lastBuyPrice))
         ) ||
         (
           // Market has turned bear, cut your loss short
           crossoverPoint.market === 'BEAR' &&
-          crossoverPoint.bidPrice < (position.lastBuyPrice - (0.1 * position.lastBuyPrice))
+          crossoverPoint.bidPrice < (position.lastBuyPrice - (0.2 * position.lastBuyPrice))
         )
       ) && position.security > 0
         && position.lastTrade === 'BUY') {
