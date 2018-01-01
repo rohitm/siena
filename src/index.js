@@ -319,6 +319,12 @@ const buySecurity = async () => {
   const commission = tradeStub.getCommission(buyQuantity, ticker.Ask);
   const buyLesserQuantity = (sienaAccount.getTradeAmount() - commission) / ticker.Ask;
 
+  log.info({
+    type: 'tradeHistory',
+    timestamp: new Date().getTime(),
+    price: ticker.Ask,
+    buyOrSell: 0,
+  });
   log.info(`buySecurity: Buy ${buyLesserQuantity}${config.get('sienaAccount.securityCurrency')} for ${ticker.Ask} on ${new Date()}`);
   const order = await buyLimit(config.get('bittrexMarket'), buyLesserQuantity, ticker.Ask);
   log.info(`buySecurity, buyOrderUuid: ${order.uuid}`);
@@ -361,6 +367,12 @@ const sellSecurity = async () => {
 
   const securityQuantity = sienaAccount.getBittrexBalance();
   if (securityQuantity > 0) {
+    log.info({
+      type: 'tradeHistory',
+      timestamp: new Date().getTime(),
+      price: ticker.Bid,
+      buyOrSell: 1,
+    });
     log.info(`sellSecurity: Sell ${securityQuantity}${config.get('sienaAccount.securityCurrency')} for ${ticker.Bid}`);
     const order = await sellLimit(config.get('bittrexMarket'), securityQuantity, ticker.Bid);
     log.info(`sellSecurity, sellOrderUuid: ${order.uuid}`);
