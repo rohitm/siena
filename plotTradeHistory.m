@@ -8,12 +8,25 @@ hold on
   buySellTimestamps = buySellPoints(:,1);
   buySellPrices = buySellPoints(:, 2);
   buyOrSell = buySellPoints(:,3);
+  buyPrices = buySellPrices(buyOrSell == 0);
+  buyTimestamps = buySellTimestamps(buyOrSell == 0);
+  sellPrices = buySellPrices(buyOrSell == 1);
+  sellTimestamps = buySellTimestamps(buyOrSell == 1);
 
   % Plot sell points
-  scatter(buySellTimestamps(buyOrSell == 1), buySellPrices(buyOrSell == 1), 5, 'b', 's');
+  scatter(sellTimestamps, sellPrices, 5, 'b', 's');
 
   % Plot buy points
-  scatter(buySellTimestamps(buyOrSell == 0), buySellPrices(buyOrSell == 0), 5, 'r', 'o');
+  scatter(buyTimestamps, buyPrices, 5, 'r', 'o');
+
+  for idx = 1:numel(buyPrices)
+    line = [buyTimestamps(idx), buyPrices(idx); sellTimestamps(idx), sellPrices(idx)];
+    if (sellPrices(idx) < buyPrices(idx))
+      plot(line(:,1),line(:,2),'-b');
+    else
+      plot(line(:,1),line(:,2),'-r');
+    end
+  end
 hold off
 
 startTime=datestr(crossoverData(1, 1)/86400/1000 + datenum(1970,1,1));
