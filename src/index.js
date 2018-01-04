@@ -250,6 +250,15 @@ const updateBalance = async () => {
   return balances;
 };
 
+const logSellTriggerPrices = (thisUpperSellPercentage, buyPrice) => {
+  const upperBand = thisUpperSellPercentage * parseFloat(buyPrice);
+  const lowerBand = config.get('strategy.lowerSellPercentage') * parseFloat(buyPrice);
+  const lowerSellTriggerPrice = parseFloat(buyPrice) - lowerBand;
+  const upperSellTriggerPrice = parseFloat(buyPrice) + upperBand;
+  log.info(`logSellTriggerPrices, Upper SELL trigger price:${upperSellTriggerPrice}`);
+  log.info(`logSellTriggerPrices, Lower SELL trigger price:${lowerSellTriggerPrice}`);
+};
+
 const updateLastTradeTime = async (expectedBalance, action, price = undefined) => {
   const account = new Account();
   const balance = account.setBittrexBalance(await updateBalance());
@@ -260,12 +269,7 @@ const updateLastTradeTime = async (expectedBalance, action, price = undefined) =
 
       // Calculate the SELL trigger prices
       upperSellPercentage = await getUpperSellPercentage(price);
-      const upperBand = upperSellPercentage * parseFloat(lastBuyPrice);
-      const lowerBand = config.get('strategy.lowerSellPercentage') * parseFloat(lastBuyPrice);
-      const lowerSellTriggerPrice = parseFloat(lastBuyPrice) - lowerBand;
-      const upperSellTriggerPrice = parseFloat(lastBuyPrice) + upperBand;
-      log.info(`getMarketTrend, Upper SELL trigger price:${upperSellTriggerPrice}`);
-      log.info(`getMarketTrend, Lower SELL trigger price:${lowerSellTriggerPrice}`);
+      logSellTriggerPrices(upperSellPercentage, lastBuyPrice);
     } else {
       lastSellPrice = price;
     }
@@ -489,6 +493,7 @@ updateBalance().then(async (bittrexBalances) => {
     }
 
     log.info(`updateBalance, lastBuyPrice: ${lastBuyPrice}`);
+    logSellTriggerPrices(upperSellPercentage, lastBuyPrice);
   }
   log.info(`updateBalance, lastTrade: ${lastTrade}`);
 
