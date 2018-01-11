@@ -1,6 +1,6 @@
 crossoverData=load("crossoverData.txt");
 % crossoverData = [smoothdata(crossoverData(:,1)), smoothdata(crossoverData(:,2))];
-buySellPoints=load("strategyResultData.txt");
+buySellPoints=load("tradeHistory.txt");
 figure('Color',[0.8 0.8 0.8]);
 plot(crossoverData(:,1),crossoverData(:,2),'-k');
 

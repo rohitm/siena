@@ -133,7 +133,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
   tradeAmount = nonStrategySellTrade.total;
 
   // Generate a file with all the buy and sell points.
-  const strategyResultDataFile = 'strategyResultData.txt';
+  const strategyResultDataFile = 'tradeHistory.txt';
   const strategyResultData = buySellPoints.join('\n');
 
   // Generate a file with all the crossover points
