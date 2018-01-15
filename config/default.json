@@ -9,11 +9,12 @@
   "bittrexApiSecret": "***",
   "bittrexCommission": 0.0025,
   "strategy": {
+    "name": "simpleMovingAverage",
     "shortPeriod": 1800000,
     "midPeriod": 18000000,
     "longPeriod": 46800000,
-    "upperSellPercentage": 0.02,
-    "lowerSellPercentage": 0.02,
+    "upperSellPercentage": 0.035,
+    "lowerSellPercentage": 0.1,
     "minimumMovingAverageSpread": 0.2
   },
   "sienaAccount": {

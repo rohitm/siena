@@ -62,7 +62,7 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
     if (
       position.account.getBalanceNumber() > 1 &&
       ((
-        crossoverPoint.market === 'BULL'
+        crossoverPoint.market === 'BEAR' || crossoverPoint.market === 'BULL'
       ))
     ) {
       log.info(`position.lastTrade: ${position.lastTrade}`);
@@ -88,12 +88,12 @@ const getCrossovers = market => new Promise(async (resolveGetCrossovers, rejectG
           // Dont sell in a bull market
           crossoverPoint.market !== 'BULL' &&
           // Make sure the sell price is some percentage higher than the buy price
-          crossoverPoint.bidPrice > (position.lastBuyPrice + (0.05 * position.lastBuyPrice))
+          crossoverPoint.bidPrice > (position.lastBuyPrice + (0.01 * position.lastBuyPrice))
         ) ||
         (
           // Market has turned bear, cut your loss short
           crossoverPoint.market === 'BEAR' &&
-          crossoverPoint.bidPrice < (position.lastBuyPrice - (0.2 * position.lastBuyPrice))
+          crossoverPoint.bidPrice < (position.lastBuyPrice - (0.1 * position.lastBuyPrice))
         )
       ) && position.security > 0
         && position.lastTrade === 'BUY') {

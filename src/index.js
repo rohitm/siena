@@ -12,6 +12,7 @@ const sellLimit = require('./lib/sell-limit');
 const tradeStub = require('./lib/trade-stub');
 const helper = require('./helper');
 const poll = require('./poll');
+const strategyRules = require('./strategy');
 const bunyan = require('bunyan');
 
 const log = bunyan.createLogger({ name: 'siena' });
@@ -31,102 +32,6 @@ let upperSellPercentage = config.get('strategy.upperSellPercentage');
 let transactionLock = false;
 let allowTrading = config.get('trade');
 const sienaAccount = new Account();
-
-// Automation rules
-const rules = [{
-  condition: function condition(R) {
-    R.when(_.has(this, 'principle') &&
-     _.has(this, 'currentAccountValue') &&
-     this.currentAccountValue < (this.principle - (config.get('sienaAccount.criticalPoint') * this.principle)));
-  },
-  consequence: function consequence(R) {
-    // Market has crashed and your capital has eroded, Bail out!
-    this.actions = ['halt'];
-    R.stop();
-  },
-}, {
-  condition: function condition(R) {
-    R.when(_.has(this, 'bittrexAccountBalances'));
-  },
-  consequence: function consequence(R) {
-    this.actions = ['compartmentaliseAccount'];
-    R.stop();
-  },
-}, {
-  condition: function condition(R) {
-    R.when(_.has(this, 'movingAverageShort') &&
-      _.has(this, 'movingAverageMid') &&
-      _.has(this, 'movingAverageLong'));
-  },
-  consequence: function consequence(R) {
-    this.actions = ['getMarketTrend', 'getAccountValue'];
-    R.stop();
-  },
-}, {
-  condition: function condition(R) {
-    R.when(_.has(this, 'event') &&
-      _.has(this, 'market') &&
-      _.has(this, 'lastTrade') &&
-      _.has(this, 'currentBidPrice') &&
-      this.event === 'crossover' &&
-      this.market === 'BULL' &&
-      this.lastTrade !== 'BUY');
-  },
-  consequence: function consequence(R) {
-    // Buy security on the lower half of the daily range, and at the start of a bull run
-    this.actions = ['buySecurity'];
-    R.stop();
-  },
-}, {
-  condition: function condition(R) {
-    R.when(_.has(this, 'event') &&
-      _.has(this, 'market') &&
-      _.has(this, 'lastTrade') &&
-      _.has(this, 'currentBidPrice') &&
-      _.has(this, 'lastSellPrice') &&
-      this.event === 'crossover' &&
-      this.market !== 'BEAR' &&
-      this.lastTrade === 'SELL-LOW' &&
-      this.currentBidPrice < this.lastSellPrice);
-  },
-  consequence: function consequence(R) {
-    // We've incurred a loss from the last sale so buy it back cheaper than the last sell price.
-    this.actions = ['buySecurity'];
-    R.stop();
-  },
-}, {
-  condition: function condition(R) {
-    R.when(_.has(this, 'event') &&
-      _.has(this, 'lastTrade') &&
-      _.has(this, 'market') &&
-      _.has(this, 'lastBuyPrice') &&
-      _.has(this, 'currentBidPrice') &&
-      this.event === 'crossover' &&
-      this.currentBidPrice > (this.lastBuyPrice + (upperSellPercentage * this.lastBuyPrice)) &&
-      this.lastTrade === 'BUY' &&
-      this.market !== 'BULL');
-  },
-  consequence: function consequence(R) {
-    // You've got a profit so cash in!
-    this.actions = ['sellSecurity'];
-    R.stop();
-  },
-}, {
-  condition: function condition(R) {
-    R.when(_.has(this, 'lastTrade') &&
-      _.has(this, 'market') &&
-      _.has(this, 'lastBuyPrice') &&
-      _.has(this, 'currentBidPrice') &&
-      this.currentBidPrice < (this.lastBuyPrice - (config.get('strategy.lowerSellPercentage') * this.lastBuyPrice)) &&
-      this.lastTrade === 'BUY' &&
-      this.market === 'BEAR');
-  },
-  consequence: function consequence(R) {
-    // This is a bear market, sell and wait for better buying opportunity.
-    this.actions = ['sellSecurity'];
-    R.stop();
-  },
-}];
 
 const getAccountValue = async () => {
   if (transactionLock) {
@@ -176,6 +81,7 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
     const bearFact = _.cloneDeep(currentMarket);
     bearFact.lastTrade = lastTrade;
     bearFact.lastBuyPrice = lastBuyPrice;
+    bearFact.upperSellPercentage = upperSellPercentage;
 
     bearTicker = await getTicker(config.get('bittrexMarket'));
     bearFact.currentBidPrice = bearTicker.Bid;
@@ -199,6 +105,7 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
   fact.crossoverTime = new Date().getTime();
   fact.lastTradeTime = lastTradeTime;
   fact.lastTrade = lastTrade;
+  fact.upperSellPercentage = upperSellPercentage;
 
   const tasks = [
     getMarketSummary(config.get('bittrexMarket')),
@@ -414,7 +321,7 @@ const halt = async (currentAccountValue) => {
 };
 
 // initialize the rule engine
-const R = new RuleEngine(rules);
+const R = new RuleEngine(strategyRules[config.get('strategy.name')]);
 
 redisClient.on('message', (channel, message) => {
   try {
