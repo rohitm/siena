@@ -48,23 +48,6 @@ module.exports = [{
 }, {
   condition: function condition(R) {
     R.when(_.has(this, 'event') &&
-      _.has(this, 'market') &&
-      _.has(this, 'lastTrade') &&
-      _.has(this, 'currentBidPrice') &&
-      _.has(this, 'lastSellPrice') &&
-      this.event === 'crossover' &&
-      this.market !== 'BEAR' &&
-      this.lastTrade === 'SELL-LOW' &&
-      this.currentBidPrice < this.lastSellPrice);
-  },
-  consequence: function consequence(R) {
-    // We've incurred a loss from the last sale so buy it back cheaper than the last sell price.
-    this.actions = ['buySecurity'];
-    R.stop();
-  },
-}, {
-  condition: function condition(R) {
-    R.when(_.has(this, 'event') &&
       _.has(this, 'lastTrade') &&
       _.has(this, 'market') &&
       _.has(this, 'lastBuyPrice') &&
