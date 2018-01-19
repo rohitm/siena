@@ -21,6 +21,7 @@ const compartmentalise = (amount) => {
 class Account {
   constructor(baseCurrency = config.get('sienaAccount.baseCurrency'), balance = 0) {
     this.baseCurrency = baseCurrency;
+    this.tradeLog = [];
     this.setBalance(balance);
   }
 
@@ -105,6 +106,71 @@ class Account {
     }
 
     return (this.getBalance());
+  }
+
+  trade(action, price) {
+    if (price === null) {
+      return false;
+    }
+    if (action !== 'sell' && action !== 'buy') {
+      return false;
+    }
+    this.tradeLog.push({ action, price });
+    return (true);
+  }
+
+  getLastAverageBuyPrice() {
+    if (this.tradeLog.length === 0) {
+      return false;
+    }
+
+    const buyIndex = _.findLastIndex(this.tradeLog, { action: 'buy' });
+    if (buyIndex === -1) {
+      return false;
+    }
+
+    const spliced = _.cloneDeep(this.tradeLog).splice(0, buyIndex + 1);
+    let sellIndex = _.findLastIndex(spliced, { action: 'sell' });
+    if (sellIndex === -1) {
+      sellIndex = 0;
+    } else {
+      sellIndex += 1;
+    }
+
+    const buyTrades = spliced.splice(sellIndex, spliced.length);
+    const count = buyTrades.length;
+    const sum = buyTrades
+      .map(trade => trade.price)
+      .reduce((accumulator, currentValue) => accumulator + currentValue);
+    return (sum / count);
+  }
+  getLastTrade() {
+    if (this.tradeLog.length === 0) {
+      return false;
+    }
+
+    return _.cloneDeep(this.tradeLog).pop();
+  }
+  getLastSellPrice() {
+    return (this.getLastPriceByAction('sell'));
+  }
+  getLastBuyPrice() {
+    return (this.getLastPriceByAction('buy'));
+  }
+  getLastPriceByAction(action) {
+    if (action !== 'sell' && action !== 'buy') {
+      return false;
+    }
+    if (this.tradeLog.length === 0) {
+      return false;
+    }
+
+    const buyIndex = _.findLastIndex(this.tradeLog, { action });
+    if (buyIndex === -1) {
+      return false;
+    }
+
+    return (this.tradeLog[buyIndex].price);
   }
 }
 
