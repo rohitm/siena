@@ -27,10 +27,10 @@ echo "Last Transaction:"
 grep "for" siena.log | tail -1
 echo
 echo "Lower Sell Trigger Price:"
-grep "Lower SELL trigger" siena.log | tail -1 | ./node_modules/.bin/bunyan
+grep "Lower sell trigger" siena.log | tail -1 | ./node_modules/.bin/bunyan
 echo
 echo "Upper Sell Trigger Price:"
-grep "Upper SELL trigger" siena.log | tail -1 | ./node_modules/.bin/bunyan
+grep "Upper sell trigger" siena.log | tail -1 | ./node_modules/.bin/bunyan
 HaltedTrade=$(cat siena.log | grep "Halt:" | ./node_modules/.bin/bunyan)
 if [ ${#HaltedTrade} -gt 0 ]; then
   echo

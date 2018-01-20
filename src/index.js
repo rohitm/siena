@@ -83,7 +83,7 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
     bearTicker = await getTicker(config.get('bittrexMarket'));
     bearFact.currentBidPrice = bearTicker.Bid;
 
-    // We need to publish this fact to the rules engine so that we can SELL
+    // We need to publish this fact to the rules engine so that we can sell
     // at the right time instead of waiting for a crossover moment.
     redisClientMessageQueue.publish('facts', JSON.stringify(bearFact));
   }
@@ -159,8 +159,8 @@ const logSellTriggerPrices = (thisUpperSellPercentage, buyPrice) => {
   const lowerBand = config.get('strategy.lowerSellPercentage') * parseFloat(buyPrice);
   const lowerSellTriggerPrice = parseFloat(buyPrice) - lowerBand;
   const upperSellTriggerPrice = parseFloat(buyPrice) + upperBand;
-  log.info(`logSellTriggerPrices, Upper SELL trigger price:${upperSellTriggerPrice}`);
-  log.info(`logSellTriggerPrices, Lower SELL trigger price:${lowerSellTriggerPrice}`);
+  log.info(`logSellTriggerPrices, Upper sell trigger price:${upperSellTriggerPrice}`);
+  log.info(`logSellTriggerPrices, Lower sell trigger price:${lowerSellTriggerPrice}`);
 };
 
 const updateLastTradeTime = async (expectedBalance, action, price = undefined) => {
@@ -170,7 +170,7 @@ const updateLastTradeTime = async (expectedBalance, action, price = undefined) =
   if (balance.toFixed(2) === expectedBalance.toFixed(2)) {
     sienaAccount.trade(action, price);
     if (action === 'buy') {
-      // Calculate the SELL trigger prices
+      // Calculate the sell trigger prices
       upperSellPercentage = await getUpperSellPercentage(price);
       logSellTriggerPrices(upperSellPercentage, sienaAccount.getLastBuyPrice());
     }
