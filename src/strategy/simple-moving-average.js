@@ -37,8 +37,8 @@ module.exports = [{
       _.has(this, 'lastTrade') &&
       _.has(this, 'currentBidPrice') &&
       this.event === 'crossover' &&
-      this.market === 'BULL' &&
-      this.lastTrade !== 'BUY');
+      this.market === 'bull' &&
+      this.lastTrade !== 'buy');
   },
   consequence: function consequence(R) {
     // Buy security on the lower half of the daily range, and at the start of a bull run
@@ -55,8 +55,8 @@ module.exports = [{
       _.has(this, 'upperSellPercentage') &&
       this.event === 'crossover' &&
       this.currentBidPrice > (this.lastBuyPrice + (this.upperSellPercentage * this.lastBuyPrice)) &&
-      this.lastTrade === 'BUY' &&
-      this.market !== 'BULL');
+      this.lastTrade === 'buy' &&
+      this.market !== 'bull');
   },
   consequence: function consequence(R) {
     // You've got a profit so cash in!
@@ -70,8 +70,8 @@ module.exports = [{
       _.has(this, 'lastBuyPrice') &&
       _.has(this, 'currentBidPrice') &&
       this.currentBidPrice < (this.lastBuyPrice - (config.get('strategy.lowerSellPercentage') * this.lastBuyPrice)) &&
-      this.lastTrade === 'BUY' &&
-      this.market === 'BEAR');
+      this.lastTrade === 'buy' &&
+      this.market === 'bear');
   },
   consequence: function consequence(R) {
     // This is a bear market, sell and wait for better buying opportunity.
