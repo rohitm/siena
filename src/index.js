@@ -25,9 +25,6 @@ redisClient.on('error', redisError => log.error(redisError));
 let crossover;
 let lastTrade;
 let principle = 0;
-let lastTradeTime = 0;
-let lastBuyPrice = 0;
-let lastSellPrice = 0;
 let upperSellPercentage = config.get('strategy.upperSellPercentage');
 let transactionLock = false;
 let allowTrading = config.get('trade');
@@ -49,25 +46,25 @@ const getAccountValue = async () => {
 const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverageLong) => {
   const currentMarket = {};
   if (movingAverageShort > movingAverageMid) {
-    currentMarket.trend = 'UP';
+    currentMarket.trend = 'up';
   } else {
-    currentMarket.trend = 'DOWN';
+    currentMarket.trend = 'down';
   }
 
   if (movingAverageShort >= movingAverageMid && movingAverageMid >= movingAverageLong) {
-    currentMarket.market = 'BULL';
+    currentMarket.market = 'bull';
   } else if (movingAverageLong >= movingAverageMid && movingAverageMid >= movingAverageShort) {
-    currentMarket.market = 'BEAR';
+    currentMarket.market = 'bear';
   } else if (movingAverageMid >= movingAverageShort && movingAverageShort >= movingAverageLong) {
-    currentMarket.market = 'VOLATILE-MID';
+    currentMarket.market = 'volatile mid';
   } else if (movingAverageLong >= movingAverageShort && movingAverageShort >= movingAverageMid) {
-    currentMarket.market = 'VOLATILE-RECOVERY';
+    currentMarket.market = 'volatile recovery';
   } else if (movingAverageMid >= movingAverageLong && movingAverageLong >= movingAverageShort) {
-    currentMarket.market = 'VOLATILE-LOW';
+    currentMarket.market = 'volatile low';
   } else if (movingAverageShort >= movingAverageLong && movingAverageLong >= movingAverageMid) {
-    currentMarket.market = 'VOLATILE';
+    currentMarket.market = 'volatile';
   } else {
-    currentMarket.market = 'FLAT';
+    currentMarket.market = 'flat';
   }
 
   log.info(`getMarketTrend, trend : ${currentMarket.trend}, market: ${(currentMarket.market || 'nevermind')}`);
@@ -77,10 +74,10 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
   }
 
   let bearTicker;
-  if (currentMarket.market === 'BEAR' && lastTrade === 'BUY' && lastBuyPrice > 0) {
+  if (currentMarket.market === 'bear' && lastTrade === 'buy' && sienaAccount.getLastBuyPrice() > 0) {
     const bearFact = _.cloneDeep(currentMarket);
     bearFact.lastTrade = lastTrade;
-    bearFact.lastBuyPrice = lastBuyPrice;
+    bearFact.lastBuyPrice = sienaAccount.getLastBuyPrice();
     bearFact.upperSellPercentage = upperSellPercentage;
 
     bearTicker = await getTicker(config.get('bittrexMarket'));
@@ -103,7 +100,7 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
     - Math.min(movingAverageLong, movingAverageMid, movingAverageShort);
   fact.event = 'crossover';
   fact.crossoverTime = new Date().getTime();
-  fact.lastTradeTime = lastTradeTime;
+  fact.lastTradeTime = sienaAccount.getLastTrade().time;
   fact.lastTrade = lastTrade;
   fact.upperSellPercentage = upperSellPercentage;
 
@@ -117,12 +114,12 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
   fact.marketLow = parseFloat(marketSummary.Low);
   fact.currentBidPrice = ticker.Bid;
 
-  if (lastBuyPrice > 0) {
-    fact.lastBuyPrice = lastBuyPrice;
+  if (sienaAccount.getLastBuyPrice() > 0) {
+    fact.lastBuyPrice = sienaAccount.getLastBuyPrice();
   }
 
-  if (lastSellPrice > 0) {
-    fact.lastSellPrice = lastSellPrice;
+  if (sienaAccount.getLastSellPrice() > 0) {
+    fact.lastSellPrice = sienaAccount.getLastSellPrice();
   }
 
   log.info(`getMarketTrend, crossoverTime: ${fact.crossoverTime}`);
@@ -171,21 +168,16 @@ const updateLastTradeTime = async (expectedBalance, action, price = undefined) =
   const balance = account.setBittrexBalance(await updateBalance());
   log.info(`updateLastTradeTime: actual balance:${balance}, expected balance: ${expectedBalance}.`);
   if (balance.toFixed(2) === expectedBalance.toFixed(2)) {
-    if (action === 'BUY') {
-      lastBuyPrice = price;
-
+    sienaAccount.trade(action, price);
+    if (action === 'buy') {
       // Calculate the SELL trigger prices
       upperSellPercentage = await getUpperSellPercentage(price);
-      logSellTriggerPrices(upperSellPercentage, lastBuyPrice);
-    } else {
-      lastSellPrice = price;
+      logSellTriggerPrices(upperSellPercentage, sienaAccount.getLastBuyPrice());
     }
 
-    // trade was successful
-    lastTradeTime = new Date().getTime();
     lastTrade = action;
     transactionLock = false;
-    log.info(`updateLastTradeTime: lastTradeTime: ${lastTradeTime}, lastBuyPrice: ${(lastBuyPrice || 'nevermind')}`);
+    log.info(`updateLastTradeTime: lastTradeTime: ${sienaAccount.getLastTrade().time}, lastBuyPrice: ${(sienaAccount.getLastBuyPrice() || 'nevermind')}`);
   } else {
     log.error('updateLastTradeTime, Error: lastTrade unsuccessful');
 
@@ -213,7 +205,7 @@ const buySecurity = async () => {
     getBalances(),
     getTicker(config.get('bittrexMarket')),
   ];
-  const timeSinceLastTrade = new Date().getTime() - lastTradeTime;
+  const timeSinceLastTrade = new Date().getTime() - sienaAccount.getLastTrade().time;
   if (timeSinceLastTrade < config.get('balancePollInterval')) {
     log.warn(`buySecurity, timeSinceLastTrade: ${helper.millisecondsToHours(timeSinceLastTrade)}. Should maybe passing this buy signal?`);
   }
@@ -243,7 +235,7 @@ const buySecurity = async () => {
   const expectedBalance = sienaAccount.getBalanceNumber() - trade.total;
 
   // Assume that this order gets filled and then update the balance
-  setTimeout(() => { updateLastTradeTime(expectedBalance, 'BUY', ticker.Ask); }, config.get('balancePollInterval'));
+  setTimeout(() => { updateLastTradeTime(expectedBalance, 'buy', ticker.Ask); }, config.get('balancePollInterval'));
   return (true);
 };
 
@@ -293,7 +285,7 @@ const sellSecurity = async () => {
     // Assume that this order gets filled and then update the balance
     setTimeout(() => {
       updateLastTradeTime(expectedBalance,
-        (parseFloat(ticker.Bid) > parseFloat(lastBuyPrice) ? 'SELL-HIGH' : 'SELL-LOW'),
+        (parseFloat(ticker.Bid) > parseFloat(sienaAccount.getLastBuyPrice()) ? 'sell high' : 'sell low'),
         ticker.Bid);
     }, config.get('balancePollInterval'));
     return (true);
@@ -311,7 +303,7 @@ const halt = async (currentAccountValue) => {
 
   log.warn(`Halt: Market has crashed beyond your critical point of ${config.get('sienaAccount.criticalPoint') * 100}% from ${principle} to ${currentAccountValue}`);
   // The market has crashed and your capital has eroded. Sell what you can stop trading!
-  if (lastTrade === 'BUY') {
+  if (lastTrade === 'buy') {
     await sellSecurity();
   }
 
@@ -387,20 +379,20 @@ updateBalance().then(async (bittrexBalances) => {
   if (sienaAccount.getBalanceNumber() > 0
     && sienaAccount.getBalanceNumber() > sienaAccount.getBittrexBalance()) {
     // Some crypto currency should have been sold to have this balance
-    lastTrade = 'SELL-HIGH';
+    lastTrade = 'sell high';
   } else {
-    lastTrade = 'BUY';
+    lastTrade = 'buy';
 
     // We don't know the last price that you bought the security in your account for
     if (!Number.isNaN(parseFloat(process.argv[2]))) {
       // Get the price that was passed as a command line argument
-      lastBuyPrice = parseFloat(process.argv[2]);
+      sienaAccount.trade('buy', process.argv[2]);
     } else {
-      lastBuyPrice = (await getTicker(config.get('bittrexMarket'))).Ask; // Consider the current Ask price as the last buy price
+      sienaAccount.trade('buy', (await getTicker(config.get('bittrexMarket'))).Ask); // Consider the current Ask price as the last buy price
     }
 
-    log.info(`updateBalance, lastBuyPrice: ${lastBuyPrice}`);
-    logSellTriggerPrices(upperSellPercentage, lastBuyPrice);
+    log.info(`updateBalance, lastBuyPrice: ${sienaAccount.getLastBuyPrice()}`);
+    logSellTriggerPrices(upperSellPercentage, sienaAccount.getLastBuyPrice());
   }
   log.info(`updateBalance, lastTrade: ${lastTrade}`);
 
