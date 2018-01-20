@@ -112,10 +112,10 @@ class Account {
     if (price === null) {
       return false;
     }
-    if (action !== 'sell' && action !== 'buy') {
+    if (action.toLowerCase() !== 'sell' && action.toLowerCase() !== 'buy') {
       return false;
     }
-    this.tradeLog.push({ action, price });
+    this.tradeLog.push({ action: action.toLowerCase(), price, time: new Date().getTime() });
     return (true);
   }
 
@@ -158,7 +158,7 @@ class Account {
     return (this.getLastPriceByAction('buy'));
   }
   getLastPriceByAction(action) {
-    if (action !== 'sell' && action !== 'buy') {
+    if (action.toLowerCase() !== 'sell' && action.toLowerCase() !== 'buy') {
       return false;
     }
     if (this.tradeLog.length === 0) {
