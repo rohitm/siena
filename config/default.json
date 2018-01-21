@@ -10,6 +10,7 @@
   "bittrexCommission": 0.0025,
   "strategy": {
     "name": "simpleMovingAverage",
+    "upperSell": "dynamic",
     "shortPeriod": 1800000,
     "midPeriod": 18000000,
     "longPeriod": 46800000,

@@ -78,6 +78,7 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
     const bearFact = _.cloneDeep(currentMarket);
     bearFact.lastTrade = lastTrade;
     bearFact.lastBuyPrice = sienaAccount.getLastBuyPrice();
+    bearFact.lastAverageBuyPrice = sienaAccount.getLastAverageBuyPrice();
     bearFact.upperSellPercentage = upperSellPercentage;
 
     bearTicker = await getTicker(config.get('bittrexMarket'));
@@ -116,6 +117,7 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
 
   if (sienaAccount.getLastBuyPrice() > 0) {
     fact.lastBuyPrice = sienaAccount.getLastBuyPrice();
+    fact.lastAverageBuyPrice = sienaAccount.getLastAverageBuyPrice();
   }
 
   if (sienaAccount.getLastSellPrice() > 0) {
@@ -170,8 +172,10 @@ const updateLastTradeTime = async (expectedBalance, action, price = undefined) =
   if (balance.toFixed(2) === expectedBalance.toFixed(2)) {
     sienaAccount.trade(action, price);
     if (action === 'buy') {
-      // Calculate the sell trigger prices
-      upperSellPercentage = await getUpperSellPercentage(price);
+      // Calculate the SELL trigger prices
+      if (config.get('strategy.upperSell') === 'dynamic') {
+        upperSellPercentage = await getUpperSellPercentage(sienaAccount.getLastAverageBuyPrice());
+      }
       logSellTriggerPrices(upperSellPercentage, sienaAccount.getLastBuyPrice());
     }
 
