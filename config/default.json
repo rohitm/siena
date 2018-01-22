@@ -35,7 +35,8 @@
     "getbalancesurl": "https://bittrex.com/api/v1.1/account/getbalances",
     "buylimiturl": "https://bittrex.com/api/v1.1/market/buylimit",
     "selllimiturl": "https://bittrex.com/api/v1.1/market/selllimit",
-    "getmarketsummaryurl": "https://bittrex.com/api/v1.1/public/getmarketsummary"
+    "getmarketsummaryurl": "https://bittrex.com/api/v1.1/public/getmarketsummary",
+    "getmarketsurl": "https://bittrex.com/api/v1.1/public/getmarkets"
   },
   "bittrexCache": {
     "getmarkethistoryurl": "http://localhost:3452/getmarkethistory",
