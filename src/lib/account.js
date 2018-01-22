@@ -2,16 +2,18 @@ const config = require('config');
 const _ = require('lodash');
 const getTicker = require('./get-ticker');
 
-const compartmentalise = (amount) => {
-  // Splits the money you have to trade and the rest into reserve
+const compartmentalise = (amount, currentTradeAmount = 0) => {
+  if (amount <= 0) {
+    return ({ tradeAmount: 0, reserve: 0, total: 0 });
+  }
 
-  // Amount available to trade = 80% of the amount or 1000
   let tradeAmount;
-  const tradeAmountUpperLimit = config.get('sienaAccount.tradeAmountUpperLimit');
-  if (amount >= tradeAmountUpperLimit) {
-    tradeAmount = tradeAmountUpperLimit;
-  } else {
+  if (currentTradeAmount === 0) {
     tradeAmount = config.get('sienaAccount.tradeAmountPercentage') * amount;
+  } else if (currentTradeAmount < amount) {
+    tradeAmount = currentTradeAmount;
+  } else if (currentTradeAmount >= amount) {
+    tradeAmount = amount;
   }
 
   const reserve = amount - tradeAmount;
@@ -22,11 +24,12 @@ class Account {
   constructor(baseCurrency = config.get('sienaAccount.baseCurrency'), balance = 0) {
     this.baseCurrency = baseCurrency;
     this.tradeLog = [];
+    this.tradeAmount = 0;
     this.setBalance(balance);
   }
 
   setBalance(balance) {
-    const compartmentalisedBalance = compartmentalise(balance);
+    const compartmentalisedBalance = compartmentalise(balance, this.tradeAmount);
     this.tradeAmount = compartmentalisedBalance.tradeAmount;
     this.reserve = compartmentalisedBalance.reserve;
   }
@@ -56,7 +59,7 @@ class Account {
   }
 
   getBalance() {
-    return compartmentalise(this.getBalanceNumber());
+    return compartmentalise(this.getBalanceNumber(), this.tradeAmount);
   }
 
   getBittrexBalanceObj() {
