@@ -33,7 +33,9 @@ const getMarket = (baseCurrency, securityCurrency, source = 'bittrex') => new Pr
       return rejectGetMarket(new Error('Markets not returned'));
     }
 
-    const market = markets.filter(market => (market.BaseCurrency === baseCurrency && market.MarketCurrency === securityCurrency));
+    const market = markets.filter(thisMarket =>
+      (thisMarket.BaseCurrency === baseCurrency &&
+        thisMarket.MarketCurrency === securityCurrency));
     return resolveGetMarket(market[0]);
   } catch (error) {
     return rejectGetMarket(error);
