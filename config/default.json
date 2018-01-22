@@ -23,6 +23,7 @@
     "securityCurrency":"ETH",
     "tradeAmountUpperLimit": 100000,
     "tradeAmountPercentage": 1,
+    "minTradeSize": 0.00245499,
     "criticalPoint": 0.2
   },
   "redis": {
