@@ -176,7 +176,7 @@ const updateLastTradeTime = async (expectedBalance, action, price = undefined) =
       if (config.get('strategy.upperSell') === 'dynamic') {
         upperSellPercentage = await getUpperSellPercentage(sienaAccount.getLastAverageBuyPrice());
       }
-      logSellTriggerPrices(upperSellPercentage, sienaAccount.getLastBuyPrice());
+      logSellTriggerPrices(upperSellPercentage, sienaAccount.getLastAverageBuyPrice());
     }
 
     lastTrade = action;
@@ -396,7 +396,7 @@ updateBalance().then(async (bittrexBalances) => {
     }
 
     log.info(`updateBalance, lastBuyPrice: ${sienaAccount.getLastBuyPrice()}`);
-    logSellTriggerPrices(upperSellPercentage, sienaAccount.getLastBuyPrice());
+    logSellTriggerPrices(upperSellPercentage, sienaAccount.getLastAverageBuyPrice());
   }
   log.info(`updateBalance, lastTrade: ${lastTrade}`);
 
