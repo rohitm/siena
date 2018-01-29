@@ -170,13 +170,15 @@ const updateLastTradeTime = async (expectedBalance, action, price = undefined) =
   const balance = account.setBittrexBalance(await updateBalance());
   log.info(`updateLastTradeTime: actual balance:${balance}, expected balance: ${expectedBalance}.`);
   if (balance.toFixed(2) === expectedBalance.toFixed(2)) {
-    sienaAccount.trade(action, price);
     if (action === 'buy') {
+      sienaAccount.trade('buy', price);
       // Calculate the SELL trigger prices
       if (config.get('strategy.upperSell') === 'dynamic') {
         upperSellPercentage = await getUpperSellPercentage(sienaAccount.getLastAverageBuyPrice());
       }
       logSellTriggerPrices(upperSellPercentage, sienaAccount.getLastAverageBuyPrice());
+    } else {
+      sienaAccount.trade('sell', price);
     }
 
     lastTrade = action;
