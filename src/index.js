@@ -218,6 +218,7 @@ const buySecurity = async () => {
 
   const [bittrexBalances, ticker] = await Promise.all(tasks);
   sienaAccount.setBittrexBalance(bittrexBalances);
+  log.info(`buySecurity, account Balance : ${sienaAccount.getBalanceNumber()}`);
   if (sienaAccount.getBalanceNumber() <= config.get('sienaAccount.minTradeSize')) {
     log.error(`buySecurity Error, account Balance : ${sienaAccount.getBalanceNumber()}. Not enough balance`);
     transactionLock = false;
@@ -235,7 +236,15 @@ const buySecurity = async () => {
     buyOrSell: 0,
   });
   log.info(`buySecurity: Buy ${buyLesserQuantity}${config.get('sienaAccount.securityCurrency')} for ${ticker.Ask} on ${new Date()}`);
-  const order = await buyLimit(config.get('bittrexMarket'), buyLesserQuantity, ticker.Ask);
+  let order;
+  try {
+    await buyLimit(config.get('bittrexMarket'), buyLesserQuantity, ticker.Ask);
+  } catch (err) {
+    log.error(`buySecurity, Error : ${err}`);
+    transactionLock = false;
+    return (false);
+  }
+
   log.info(`buySecurity, buyOrderUuid: ${order.uuid}`);
   const trade = tradeStub.buy(buyLesserQuantity, ticker.Ask);
   const expectedBalance = sienaAccount.getBalanceNumber() - trade.total;
