@@ -170,13 +170,15 @@ const updateLastTradeTime = async (expectedBalance, action, price = undefined) =
   const balance = account.setBittrexBalance(await updateBalance());
   log.info(`updateLastTradeTime: actual balance:${balance}, expected balance: ${expectedBalance}.`);
   if (balance.toFixed(2) === expectedBalance.toFixed(2)) {
-    sienaAccount.trade(action, price);
     if (action === 'buy') {
+      sienaAccount.trade('buy', price);
       // Calculate the SELL trigger prices
       if (config.get('strategy.upperSell') === 'dynamic') {
         upperSellPercentage = await getUpperSellPercentage(sienaAccount.getLastAverageBuyPrice());
       }
-      logSellTriggerPrices(upperSellPercentage, sienaAccount.getLastBuyPrice());
+      logSellTriggerPrices(upperSellPercentage, sienaAccount.getLastAverageBuyPrice());
+    } else {
+      sienaAccount.trade('sell', price);
     }
 
     lastTrade = action;
@@ -216,6 +218,7 @@ const buySecurity = async () => {
 
   const [bittrexBalances, ticker] = await Promise.all(tasks);
   sienaAccount.setBittrexBalance(bittrexBalances);
+  log.info(`buySecurity, account Balance : ${sienaAccount.getBalanceNumber()}`);
   if (sienaAccount.getBalanceNumber() <= config.get('sienaAccount.minTradeSize')) {
     log.error(`buySecurity Error, account Balance : ${sienaAccount.getBalanceNumber()}. Not enough balance`);
     transactionLock = false;
@@ -232,8 +235,18 @@ const buySecurity = async () => {
     price: ticker.Ask,
     buyOrSell: 0,
   });
-  log.info(`buySecurity: Buy ${buyLesserQuantity}${config.get('sienaAccount.securityCurrency')} for ${ticker.Ask} on ${new Date()}`);
-  const order = await buyLimit(config.get('bittrexMarket'), buyLesserQuantity, ticker.Ask);
+  log.info(`buySecurity, getTradeAmount: ${sienaAccount.getTradeAmount()}`);
+  log.info(`buySecurity: Buy ${buyLesserQuantity.toFixed(12)}${config.get('sienaAccount.securityCurrency')} for ${ticker.Ask} on ${new Date()}`);
+  let order;
+  try {
+    order = await buyLimit(config.get('bittrexMarket'), buyLesserQuantity, ticker.Ask);
+  } catch (err) {
+    // Watch out for MIN_TRADE_REQUIREMENT_NOT_MET
+    log.error(`buySecurity, Error : ${err}`);
+    transactionLock = false;
+    return (false);
+  }
+
   log.info(`buySecurity, buyOrderUuid: ${order.uuid}`);
   const trade = tradeStub.buy(buyLesserQuantity, ticker.Ask);
   const expectedBalance = sienaAccount.getBalanceNumber() - trade.total;
@@ -396,7 +409,7 @@ updateBalance().then(async (bittrexBalances) => {
     }
 
     log.info(`updateBalance, lastBuyPrice: ${sienaAccount.getLastBuyPrice()}`);
-    logSellTriggerPrices(upperSellPercentage, sienaAccount.getLastBuyPrice());
+    logSellTriggerPrices(upperSellPercentage, sienaAccount.getLastAverageBuyPrice());
   }
   log.info(`updateBalance, lastTrade: ${lastTrade}`);
 
