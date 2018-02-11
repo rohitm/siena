@@ -239,7 +239,7 @@ const buySecurity = async () => {
   log.info(`buySecurity: Buy ${buyLesserQuantity.toFixed(12)}${config.get('sienaAccount.securityCurrency')} for ${ticker.Ask} on ${new Date()}`);
   let order;
   try {
-    await buyLimit(config.get('bittrexMarket'), buyLesserQuantity, ticker.Ask);
+    order = await buyLimit(config.get('bittrexMarket'), buyLesserQuantity, ticker.Ask);
   } catch (err) {
     // Watch out for MIN_TRADE_REQUIREMENT_NOT_MET
     log.error(`buySecurity, Error : ${err}`);
