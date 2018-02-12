@@ -44,7 +44,7 @@ RULE compartmentalise your account for trade
 The project requires 
 - A bittrex account with API keys
 - A machine with node/redis/matlab setup
-- A configuration that is tweaked to the currency market that you wish to trade with
+- A configuration that is tweaked to the currency market that you wish to trade with.
 I'd be willing to jot down the documentation for all this if there is sufficient traction from the community. Feel free [create an issue](https://github.com/rohitm/siena/issues), I will honour popular demand.
 
 ### Disclaimer
