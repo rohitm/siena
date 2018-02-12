@@ -1,5 +1,5 @@
 # Siena
-A trading bot that uses IFTTT like rules described in [strategy files](https://github.com/rohitm/siena/tree/master/src/strategy) to trade on bittrex. Extend this framework with your own strategies based on other technical indicators.
+A trading bot built on node.js that uses IFTTT like rules described in [strategy files](https://github.com/rohitm/siena/tree/master/src/strategy) to trade on bittrex. Extend this framework with your own trading strategies based on different technical indicators.
 
 ## Autotrade rules - Simple moving average.
 
