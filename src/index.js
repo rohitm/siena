@@ -303,9 +303,7 @@ const sellSecurity = async () => {
     setTimeout(() => {
       updateLastTradeTime(expectedBalance,
         (parseFloat(ticker.Bid) > parseFloat(sienaAccount.getLastBuyPrice()) ? 'sell high' : 'sell low'),
-        ticker.Bid,
-
-      );
+        ticker.Bid);
     }, config.get('balancePollInterval'));
     return (true);
   }
@@ -395,11 +393,7 @@ redisClient.subscribe('facts');
 updateBalance().then(async (bittrexBalances) => {
   sienaAccount.setBittrexBalance(bittrexBalances);
 
-  if (sienaAccount.getBalanceNumber() > 0
-    && sienaAccount.getBalanceNumber() > sienaAccount.getBittrexBalance()) {
-    // Some crypto currency should have been sold to have this balance
-    lastTrade = 'sell high';
-  } else {
+  if (sienaAccount.getBittrexBalance() > 0) {
     lastTrade = 'buy';
     await sienaAccount.calibrateTradeAmount();
 
@@ -413,7 +407,11 @@ updateBalance().then(async (bittrexBalances) => {
 
     log.info(`updateBalance, lastBuyPrice: ${sienaAccount.getLastBuyPrice()}`);
     logSellTriggerPrices(upperSellPercentage, sienaAccount.getLastAverageBuyPrice());
+  } else if (sienaAccount.getBalanceNumber() > 0) {
+    // Some crypto currency should have been sold to have this balance
+    lastTrade = 'sell high';
   }
+
   log.info(`updateBalance, lastTrade: ${lastTrade}`);
 
   principle = await sienaAccount.getAccountValue();

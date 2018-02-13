@@ -67,12 +67,18 @@ class Account {
   }
 
   async calibrateTradeAmount() {
-    const accountValue = await this.getAccountValue();
-    const balance = this.getBalanceNumber();
-    const compartmentalisedBalance = compartmentalise(accountValue, balance);
+    const currentBalance = this.getBalanceNumber();
+    const securityBalance = _.filter(this.bittrexBalances,
+      bittrexAccount => (bittrexAccount.Currency === config.get('sienaAccount.securityCurrency')))[0].Available;
+    let balance = _.filter(this.bittrexBalances,
+      bittrexAccount => (bittrexAccount.Currency === config.get('sienaAccount.baseCurrency')))[0].Available;
+
+    const ticker = await getTicker(config.get('bittrexMarket'));
+    const midPrice = (ticker.Bid + ticker.Ask) / 2;
+    balance += (securityBalance * midPrice);
+    const compartmentalisedBalance = compartmentalise(balance);
     this.tradeAmount = compartmentalisedBalance.tradeAmount;
-    this.reserve = compartmentalisedBalance.reserve;
-    return compartmentalisedBalance;
+    this.reserve = currentBalance - compartmentalisedBalance.tradeAmount;
   }
 
   getBalanceNumber() {
@@ -83,7 +89,6 @@ class Account {
     if (bittrexBalances !== undefined) {
       this.setBittrexBalance(bittrexBalances);
     }
-
     const ticker = await getTicker(market);
     const midPrice = (ticker.Bid + ticker.Ask) / 2;
     return this.getBalanceNumber() + (this.getBittrexBalance() * midPrice);
