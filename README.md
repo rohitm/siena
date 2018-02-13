@@ -48,4 +48,4 @@ The project requires
 I'd be willing to jot down the documentation for all this if there is sufficient traction from the community. Feel free to [create an issue](https://github.com/rohitm/siena/issues). I will honour popular demand.
 
 ### Disclaimer
-All code provided on this repository is for experimental and demostration purposes only. I take no responsibility for any monetary loss from its use. Please use this project at your own risk.
+All code provided on this repository is for experimental and demonstration purposes only. I take no responsibility for any monetary loss from its use. Please use this project at your own risk.
