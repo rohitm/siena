@@ -66,6 +66,15 @@ class Account {
     return this.bittrexBalances;
   }
 
+  async calibrateTradeAmount() {
+    const accountValue = await this.getAccountValue();
+    const balance = this.getBalanceNumber();
+    const compartmentalisedBalance = compartmentalise(accountValue, balance);
+    this.tradeAmount = compartmentalisedBalance.tradeAmount;
+    this.reserve = compartmentalisedBalance.reserve;
+    return compartmentalisedBalance;
+  }
+
   getBalanceNumber() {
     return this.tradeAmount + this.reserve;
   }
@@ -93,7 +102,10 @@ class Account {
       return (this.getBalance());
     }
 
-    this.setBalance(this.getBalanceNumber() + amount);
+    // Reset the current tradeAmount
+    const currentBalanceNumber = this.getBalanceNumber();
+    this.tradeAmount = 0;
+    this.setBalance(currentBalanceNumber + amount);
     return (this.getBalance());
   }
 
@@ -111,12 +123,19 @@ class Account {
     return (this.getBalance());
   }
 
-  trade(action, price) {
+  trade(action, price, amount) {
     if (price === null) {
       return false;
     }
     if (action.toLowerCase() !== 'sell' && action.toLowerCase() !== 'buy') {
       return false;
+    }
+    if (amount !== undefined) {
+      if (action.toLowerCase() === 'buy') {
+        this.debit(amount);
+      } else {
+        this.credit(amount);
+      }
     }
     this.tradeLog.push({ action: action.toLowerCase(), price, time: new Date().getTime() });
     return (true);

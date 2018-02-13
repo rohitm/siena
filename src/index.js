@@ -171,14 +171,14 @@ const updateLastTradeTime = async (expectedBalance, action, price = undefined) =
   log.info(`updateLastTradeTime: actual balance:${balance}, expected balance: ${expectedBalance}.`);
   if (balance.toFixed(2) === expectedBalance.toFixed(2)) {
     if (action === 'buy') {
-      sienaAccount.trade('buy', price);
+      sienaAccount.trade('buy', price, sienaAccount.getTradeAmount());
       // Calculate the SELL trigger prices
       if (config.get('strategy.upperSell') === 'dynamic') {
         upperSellPercentage = await getUpperSellPercentage(sienaAccount.getLastAverageBuyPrice());
       }
       logSellTriggerPrices(upperSellPercentage, sienaAccount.getLastAverageBuyPrice());
     } else {
-      sienaAccount.trade('sell', price);
+      sienaAccount.trade('sell', price, balance);
     }
 
     lastTrade = action;
@@ -303,7 +303,9 @@ const sellSecurity = async () => {
     setTimeout(() => {
       updateLastTradeTime(expectedBalance,
         (parseFloat(ticker.Bid) > parseFloat(sienaAccount.getLastBuyPrice()) ? 'sell high' : 'sell low'),
-        ticker.Bid);
+        ticker.Bid,
+
+      );
     }, config.get('balancePollInterval'));
     return (true);
   }
@@ -399,6 +401,7 @@ updateBalance().then(async (bittrexBalances) => {
     lastTrade = 'sell high';
   } else {
     lastTrade = 'buy';
+    await sienaAccount.calibrateTradeAmount();
 
     // We don't know the last price that you bought the security in your account for
     if (!Number.isNaN(parseFloat(process.argv[2]))) {
