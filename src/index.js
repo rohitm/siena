@@ -178,7 +178,7 @@ const updateLastTradeTime = async (expectedBalance, action, price = undefined) =
       }
       logSellTriggerPrices(upperSellPercentage, sienaAccount.getLastAverageBuyPrice());
     } else {
-      sienaAccount.trade('sell', price, balance);
+      sienaAccount.trade('sell', price, balance - sienaAccount.getBalanceNumber());
     }
 
     lastTrade = action;
