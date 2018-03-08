@@ -9,22 +9,23 @@
   "bittrexApiSecret": "***",
   "bittrexCommission": 0.0025,
   "strategy": {
-    "name": "simpleMovingAverage",
-    "upperSell": "dynamic",
+    "name": "simpleMovingAverageMutipleBuys",
     "shortPeriod": 1800000,
     "midPeriod": 18000000,
     "longPeriod": 46800000,
-    "upperSellPercentage": 0.035,
-    "lowerSellPercentage": 0.1,
+    "upperSell": "fixed",
+    "upperSellPercentage": 0.02,
+    "lowerBuyPercentage": 0.01,
+    "lowerSellPercentage": 0.05,
     "minimumMovingAverageSpread": 0.2
   },
   "sienaAccount": {
     "baseCurrency": "USDT",
     "securityCurrency":"ETH",
     "tradeAmountUpperLimit": 100000,
-    "tradeAmountPercentage": 1,
-    "minTradeSize": 0.00245499,
-    "criticalPoint": 0.2
+    "tradeAmountPercentage": 0.3333,
+    "minTradeSize": 1,
+    "criticalPoint": 0.05
   },
   "redis": {
     "hostname": "localhost",
