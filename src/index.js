@@ -80,6 +80,7 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
     bearFact.lastBuyPrice = sienaAccount.getLastBuyPrice();
     bearFact.lastAverageBuyPrice = sienaAccount.getLastAverageBuyPrice();
     bearFact.upperSellPercentage = upperSellPercentage;
+    bearFact.accountBalance = sienaAccount.getBalanceNumber();
 
     bearTicker = await getTicker(config.get('bittrexMarket'));
     bearFact.currentBidPrice = bearTicker.Bid;
@@ -123,6 +124,7 @@ const getMarketTrend = async (movingAverageShort, movingAverageMid, movingAverag
   if (sienaAccount.getLastSellPrice() > 0) {
     fact.lastSellPrice = sienaAccount.getLastSellPrice();
   }
+  fact.accountBalance = sienaAccount.getBalanceNumber();
 
   log.info(`getMarketTrend, crossoverTime: ${fact.crossoverTime}`);
 

@@ -79,4 +79,22 @@ module.exports = [{
     this.actions = ['buySecurity'];
     R.stop();
   },
+}, {
+  condition: function condition(R) {
+    R.when(_.has(this, 'lastTrade') &&
+      _.has(this, 'market') &&
+      _.has(this, 'lastAverageBuyPrice') &&
+      _.has(this, 'currentBidPrice') &&
+      _.has(this, 'accountBalance') &&
+      this.currentBidPrice < (this.lastBuyPrice - (config.get('strategy.lowerSellPercentage') * this.lastAverageBuyPrice)) &&
+      this.accountBalance <= config.get('sienaAccount.minTradeSize') &&
+      this.lastTrade === 'buy' &&
+      this.market === 'bear');
+  },
+  consequence: function consequence(R) {
+    // You have no more money to buy and this is a bear market,
+    // sell and wait for better buying opportunity.
+    this.actions = ['sellSecurity'];
+    R.stop();
+  },
 }];
