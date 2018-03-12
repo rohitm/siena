@@ -37,11 +37,11 @@ module.exports = [{
       _.has(this, 'lastTrade') &&
       _.has(this, 'currentBidPrice') &&
       this.event === 'crossover' &&
-      this.market === 'bull' &&
+      this.market === 'volatile mid' &&
       this.lastTrade !== 'buy');
   },
   consequence: function consequence(R) {
-    // Buy security at the start of a bull run
+    // Buy security slightly cheap around a bull market
     this.actions = ['buySecurity'];
     R.stop();
   },
